@@ -24,7 +24,6 @@ pub mod pallet_balances;
 pub mod pallet_chain_space;
 pub mod pallet_did;
 pub mod pallet_did_name;
-pub mod pallet_did_token;
 pub mod pallet_identity;
 pub mod pallet_im_online;
 pub mod pallet_indices;

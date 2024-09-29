@@ -1604,7 +1604,6 @@ dependencies = [
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
- "pallet-did-token",
  "pallet-entries",
  "pallet-grandpa",
  "pallet-identity 0.9.3",
@@ -2279,7 +2278,6 @@ dependencies = [
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
- "pallet-did-token",
  "pallet-entries",
  "pallet-grandpa",
  "pallet-identity 0.9.3",
@@ -8621,27 +8619,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-did-token"
-version = "0.9.3"
-dependencies = [
- "cord-identifier",
- "cord-primitives",
- "cord-utilities",
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "pallet-chain-space",
- "pallet-schema",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-io",
- "sp-keystore",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-election-provider-multi-phase"
 version = "37.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.16.0#4c2631ab999fc6f75dbb84e025847f6f4a2836c0"
@@ -9377,6 +9354,27 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+]
+
+[[package]]
+name = "pallet-statement"
+version = "0.9.3"
+dependencies = [
+ "cord-identifier",
+ "cord-primitives",
+ "cord-utilities",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-chain-space",
+ "pallet-schema",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-keystore",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

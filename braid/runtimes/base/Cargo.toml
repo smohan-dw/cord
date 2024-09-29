@@ -260,14 +260,7 @@ try-runtime = [
 	"pallet-node-authorization/try-runtime",
 	"pallet-runtime-upgrade/try-runtime",
 	"pallet-remark/try-runtime",
-<<<<<<< HEAD:runtimes/braid/Cargo.toml
-	"pallet-registries/try-runtime",
-	"pallet-schema-accounts/try-runtime",
-	"pallet-entries/try-runtime",
-	"cord-runtime-common/try-runtime",
-=======
 	"cord-braid-runtime-common/try-runtime",
->>>>>>> 83c317c (sdk v1.16.0 update):braid/runtimes/base/Cargo.toml
 	"authority-membership/try-runtime",
 	"identifier/try-runtime",
 	"frame-try-runtime/try-runtime",

@@ -181,12 +181,6 @@ std = [
 	"pallet-node-authorization/std",
 	"pallet-registries/std",
 	"pallet-entries/std",
-<<<<<<< HEAD:runtimes/loom/Cargo.toml
-	"pallet-schema-accounts/std",
-	"pallet-transaction-weight-runtime-api/std",
-	"sp-runtime/std",
-=======
->>>>>>> 83c317c (sdk v1.16.0 update):braid/runtimes/plus/Cargo.toml
 	"sp-staking/std",
 	"frame-system/std",
 	"frame-system-rpc-runtime-api/std",

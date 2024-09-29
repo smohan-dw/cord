@@ -758,20 +758,6 @@ impl pallet_registries::Config for Runtime {
 	type WeightInfo = ();
 }
 
-parameter_types! {
-	pub const MaxDigestsPerBatch: u16 = 1_000;
-	pub const MaxRemoveEntries: u16 = 1_000;
-}
-
-impl pallet_did_token::Config for Runtime {
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_did_token::WeightInfo<Runtime>;
-	type MaxDigestsPerBatch = MaxDigestsPerBatch;
-	type MaxRemoveEntries = MaxRemoveEntries;
-}
-
 impl pallet_remark::Config for Runtime {
 	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
@@ -956,9 +942,6 @@ mod runtime {
 	#[runtime::pallet_index(54)]
 	pub type ChainSpace = pallet_chain_space;
 
-	#[runtime::pallet_index(55)]
-	pub type DidToken = pallet_did_token;
-
 	#[runtime::pallet_index(56)]
 	pub type DidName = pallet_did_name;
 
@@ -1023,9 +1006,6 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::Schema { .. } => {
-				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
-			},
-			RuntimeCall::DidToken { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::NetworkScore { .. } => {
@@ -1147,7 +1127,6 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
-		[pallet_did_token, DidToken]
 		[pallet_chain_space, ChainSpace]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
