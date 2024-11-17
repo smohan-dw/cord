@@ -18,11 +18,11 @@
 
 //! CORD custom chain configurations.
 
-pub use cord_braid_base_runtime::RuntimeGenesisConfig as BraidBaseRuntimeGenesisConfig;
-pub use cord_braid_plus_runtime::RuntimeGenesisConfig as BraidPlusRuntimeGenesisConfig;
+pub use cord_braid_flow_runtime::RuntimeGenesisConfig as BraidFlowRuntimeGenesisConfig;
+pub use cord_braid_pulse_runtime::RuntimeGenesisConfig as BraidPulseRuntimeGenesisConfig;
 
-use cord_braid_base_runtime::SessionKeys as BraidBaseSessionKeys;
-use cord_braid_plus_runtime::SessionKeys as BraidPlusSessionKeys;
+use cord_braid_flow_runtime::SessionKeys as BraidFlowSessionKeys;
+use cord_braid_pulse_runtime::SessionKeys as BraidPulseSessionKeys;
 
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -35,8 +35,8 @@ use sp_consensus_babe::AuthorityId as BabeId;
 use sp_core::crypto::UncheckedInto;
 use sp_std::collections::btree_map::BTreeMap;
 
-pub use cord_braid_base_runtime_constants::currency::UNITS as BRAID_UNITS;
-pub use cord_braid_plus_runtime_constants::currency::UNITS as LOOM_UNITS;
+pub use cord_braid_flow_runtime_constants::currency::UNITS as LOOM_UNITS;
+pub use cord_braid_pulse_runtime_constants::currency::UNITS as BRAID_UNITS;
 
 use crate::chain_spec::{get_properties, Extensions, CORD_TELEMETRY_URL, DEFAULT_PROTOCOL_ID};
 
@@ -77,25 +77,25 @@ pub type CordChainSpec = sc_service::GenericChainSpec<Extensions>;
 pub const BASE_ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
 pub const PLUS_ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
 
-fn braid_base_session_keys(
+fn braid_pulse_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
-) -> BraidBaseSessionKeys {
-	BraidBaseSessionKeys { babe, grandpa, im_online, authority_discovery }
+) -> BraidPulseSessionKeys {
+	BraidPulseSessionKeys { babe, grandpa, im_online, authority_discovery }
 }
 
-fn braid_plus_session_keys(
+fn braid_flow_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
-) -> BraidPlusSessionKeys {
-	BraidPlusSessionKeys { babe, grandpa, im_online, authority_discovery }
+) -> BraidFlowSessionKeys {
+	BraidFlowSessionKeys { babe, grandpa, im_online, authority_discovery }
 }
 
-fn cord_braid_base_custom_config_genesis(config: ChainParams) -> serde_json::Value {
+fn cord_braid_pulse_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	let initial_network_members: Vec<AccountId> =
 		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
 
@@ -125,7 +125,7 @@ fn cord_braid_base_custom_config_genesis(config: ChainParams) -> serde_json::Val
 			.collect();
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
-	cord_braid_base_custom_genesis(
+	cord_braid_pulse_custom_genesis(
 		initial_network_members,
 		initial_well_known_nodes,
 		initial_authorities,
@@ -133,7 +133,7 @@ fn cord_braid_base_custom_config_genesis(config: ChainParams) -> serde_json::Val
 	)
 }
 
-fn cord_braid_plus_custom_config_genesis(config: ChainParams) -> serde_json::Value {
+fn cord_braid_flow_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 	let initial_network_members: Vec<AccountId> =
 		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
 
@@ -163,7 +163,7 @@ fn cord_braid_plus_custom_config_genesis(config: ChainParams) -> serde_json::Val
 			.collect();
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
-	cord_braid_plus_custom_genesis(
+	cord_braid_flow_custom_genesis(
 		initial_network_members,
 		initial_well_known_nodes,
 		initial_authorities,
@@ -177,16 +177,16 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 	let runtime_type = config.runtime_type.to_lowercase();
 
 	/* 'id' must start with either `braid', 'loom' or 'weave' for config to run */
-	if runtime_type == "base" {
+	if runtime_type == "pulse" {
 		let properties = get_properties("UNITS", 12, 3893);
 		Ok(CordChainSpec::builder(
-			cord_braid_base_runtime::WASM_BINARY.ok_or("Braid Base wasm not available")?,
+			cord_braid_pulse_runtime::WASM_BINARY.ok_or("Braid Pulse wasm not available")?,
 			Default::default(),
 		)
 		.with_name(&chain_name)
-		.with_id("braid-base-custom")
+		.with_id("braid-pulse-custom")
 		.with_chain_type(chain_type)
-		.with_genesis_config_patch(cord_braid_base_custom_config_genesis(config.clone()))
+		.with_genesis_config_patch(cord_braid_pulse_custom_config_genesis(config.clone()))
 		.with_telemetry_endpoints(
 			TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 				.expect("Cord telemetry url is valid; qed"),
@@ -194,16 +194,16 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 		.with_protocol_id(DEFAULT_PROTOCOL_ID)
 		.with_properties(properties)
 		.build())
-	} else if runtime_type == "plus" {
+	} else if runtime_type == "flow" {
 		let properties = get_properties("UNITS", 12, 4926);
 		Ok(CordChainSpec::builder(
-			cord_braid_plus_runtime::WASM_BINARY.ok_or("Braid Plus wasm not available")?,
+			cord_braid_flow_runtime::WASM_BINARY.ok_or("Braid Flow wasm not available")?,
 			Default::default(),
 		)
 		.with_name(&chain_name)
-		.with_id("braid-plus-custom")
+		.with_id("braid-flow-custom")
 		.with_chain_type(chain_type)
-		.with_genesis_config_patch(cord_braid_plus_custom_config_genesis(config.clone()))
+		.with_genesis_config_patch(cord_braid_flow_custom_config_genesis(config.clone()))
 		.with_telemetry_endpoints(
 			TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 				.expect("Cord telemetry url is valid; qed"),
@@ -219,7 +219,7 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 	}
 }
 
-fn cord_braid_base_custom_genesis(
+fn cord_braid_pulse_custom_genesis(
 	initial_network_members: Vec<AccountId>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
@@ -251,7 +251,7 @@ fn cord_braid_base_custom_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						braid_base_session_keys(
+						braid_pulse_session_keys(
 							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),
@@ -262,13 +262,13 @@ fn cord_braid_base_custom_genesis(
 				.collect::<Vec<_>>(),
 		},
 		"babe":  {
-			"epochConfig": Some(cord_braid_base_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_braid_pulse_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"sudo": { "key": Some(root_key) },
 	})
 }
 
-fn cord_braid_plus_custom_genesis(
+fn cord_braid_flow_custom_genesis(
 	initial_network_members: Vec<AccountId>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
@@ -300,7 +300,7 @@ fn cord_braid_plus_custom_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						braid_plus_session_keys(
+						braid_flow_session_keys(
 							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),
@@ -311,7 +311,7 @@ fn cord_braid_plus_custom_genesis(
 				.collect::<Vec<_>>(),
 		},
 		"babe":  {
-			"epochConfig": Some(cord_braid_plus_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_braid_flow_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"councilMembership":  {
 			"members": initial_authorities

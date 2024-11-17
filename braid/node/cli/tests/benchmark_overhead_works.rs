@@ -20,7 +20,7 @@ use assert_cmd::cargo::cargo_bin;
 use std::{process::Command, result::Result};
 use tempfile::tempdir;
 
-static RUNTIMES: &[&str] = &["base", "plus"];
+static RUNTIMES: &[&str] = &["base", "flow"];
 
 /// `benchmark overhead` works for all dev runtimes.
 #[test]

@@ -39,6 +39,6 @@ async fn purge_chain_works() {
 	assert!(status.success());
 
 	// Make sure that the `dev` chain folder exists, but the `db` is deleted.
-	assert!(base_path.path().join("chains/braid-plus-dev/").exists());
-	assert!(!base_path.path().join("chains/braid-plus-dev/db/full").exists());
+	assert!(base_path.path().join("chains/braid-flow-dev/").exists());
+	assert!(!base_path.path().join("chains/braid-flow-dev/db/full").exists());
 }

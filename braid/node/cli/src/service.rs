@@ -46,7 +46,7 @@ use std::{path::Path, sync::Arc};
 use sc_telemetry::Telemetry;
 
 pub use crate::{
-	chain_spec::{BraidBaseChainSpec, BraidPlusChainSpec, GenericChainSpec},
+	chain_spec::{BraidFlowChainSpec, BraidPulseChainSpec, GenericChainSpec},
 	fake_runtime_api::{GetLastTimestamp, RuntimeApi},
 };
 pub use cord_primitives::Block;
@@ -75,10 +75,10 @@ use sc_network::{
 use sc_network_sync::{strategy::warp::WarpSyncConfig, SyncingService};
 pub use sp_runtime::{OpaqueExtrinsic, SaturatedConversion};
 
-#[cfg(feature = "braid-base-native")]
-pub use {cord_braid_base_runtime, cord_braid_base_runtime_constants};
-#[cfg(feature = "braid-plus-native")]
-pub use {cord_braid_plus_runtime, cord_braid_plus_runtime_constants};
+#[cfg(feature = "braid-flow-native")]
+pub use {cord_braid_flow_runtime, cord_braid_flow_runtime_constants};
+#[cfg(feature = "braid-pulse-native")]
+pub use {cord_braid_pulse_runtime, cord_braid_pulse_runtime_constants};
 
 /// The minimum period of blocks on which justifications will be
 /// imported and generated.
@@ -176,7 +176,7 @@ pub enum Error {
 	DatabasePathRequired,
 
 	#[cfg(feature = "full-node")]
-	#[error("Expected at least one of base or plus runtime feature")]
+	#[error("Expected at least one of pulse or flow runtime feature")]
 	NoRuntime,
 }
 
@@ -196,20 +196,20 @@ pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
 /// Identifies the variant of the chain.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Chain {
-	/// Braid Base
-	Base,
-	/// Braid Plus
-	Plus,
+	/// Braid Pulse
+	Pulse,
+	/// Braid Flow
+	Flow,
 	/// Unknown chain?
 	Unknown,
 }
 
 pub trait IdentifyVariant {
-	/// Returns `true` if this is a configuration for braid base network.
-	fn is_base(&self) -> bool;
+	/// Returns `true` if this is a configuration for braid pulse network.
+	fn is_pulse(&self) -> bool;
 
-	/// Returns `true` if this is a configuration for braid plus network.
-	fn is_plus(&self) -> bool;
+	/// Returns `true` if this is a configuration for braid flow network.
+	fn is_flow(&self) -> bool;
 
 	/// Returns true if this configuration is for a development network.
 	fn is_dev(&self) -> bool;
@@ -219,20 +219,20 @@ pub trait IdentifyVariant {
 }
 
 impl IdentifyVariant for Box<dyn ChainSpec> {
-	fn is_base(&self) -> bool {
-		self.id().starts_with("base") || self.id().starts_with("braid-base")
+	fn is_pulse(&self) -> bool {
+		self.id().starts_with("pulse") || self.id().starts_with("braid-pulse")
 	}
-	fn is_plus(&self) -> bool {
-		self.id().starts_with("plus") || self.id().starts_with("braid-plus")
+	fn is_flow(&self) -> bool {
+		self.id().starts_with("flow") || self.id().starts_with("braid-flow")
 	}
 	fn is_dev(&self) -> bool {
 		self.id().ends_with("dev")
 	}
 	fn identify_chain(&self) -> Chain {
-		if self.is_base() {
-			Chain::Base
-		} else if self.is_plus() {
-			Chain::Plus
+		if self.is_pulse() {
+			Chain::Pulse
+		} else if self.is_flow() {
+			Chain::Flow
 		} else {
 			Chain::Unknown
 		}
@@ -463,7 +463,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 ) -> Result<NewFullBase, ServiceError> {
 	let role = config.role;
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_base() || config.chain_spec.is_plus() {
+	let backoff_authoring_blocks = if config.chain_spec.is_pulse() || config.chain_spec.is_flow() {
 		// the block authoring backoff is disabled on production networks
 		None
 	} else {
@@ -750,9 +750,9 @@ pub trait RuntimeConfig {
 }
 
 #[cfg(feature = "full-node")]
-pub struct BraidBaseRuntime;
+pub struct BraidPulseRuntime;
 #[cfg(feature = "full-node")]
-impl RuntimeConfig for BraidBaseRuntime {
+impl RuntimeConfig for BraidPulseRuntime {
 	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
 		let task_manager = match config.network.network_backend {
@@ -790,9 +790,9 @@ impl RuntimeConfig for BraidBaseRuntime {
 }
 
 #[cfg(feature = "full-node")]
-pub struct BraidPlusRuntime;
+pub struct BraidFlowRuntime;
 #[cfg(feature = "full-node")]
-impl RuntimeConfig for BraidPlusRuntime {
+impl RuntimeConfig for BraidFlowRuntime {
 	fn new_full(&self, config: Configuration, cli: Cli) -> Result<TaskManager, ServiceError> {
 		let database_path = config.database.path().map(Path::to_path_buf);
 		let task_manager = match config.network.network_backend {
@@ -830,10 +830,10 @@ impl RuntimeConfig for BraidPlusRuntime {
 }
 
 pub fn select_runtime(config: &Configuration) -> Box<dyn RuntimeConfig> {
-	if config.chain_spec.is_base() {
-		Box::new(BraidBaseRuntime)
-	} else if config.chain_spec.is_plus() {
-		Box::new(BraidPlusRuntime)
+	if config.chain_spec.is_pulse() {
+		Box::new(BraidPulseRuntime)
+	} else if config.chain_spec.is_flow() {
+		Box::new(BraidFlowRuntime)
 	} else {
 		panic!("Unsupported runtime");
 	}

@@ -19,7 +19,7 @@
 use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 
-static RUNTIMES: &[&str] = &["base", "plus"];
+static RUNTIMES: &[&str] = &["base", "flow"];
 
 /// Tests that the `benchmark machine` command works for the cord dev
 /// runtime.

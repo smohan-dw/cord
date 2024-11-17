@@ -34,18 +34,18 @@ use sp_runtime::traits::{IdentifyAccount, Verify};
 type AccountPublic = <Signature as Verify>::Signer;
 use sc_telemetry::TelemetryEndpoints;
 
-#[cfg(feature = "braid-base-native")]
-pub use cord_braid_base_runtime_constants::currency::UNITS as BASE_UNITS;
-#[cfg(feature = "braid-plus-native")]
-pub use cord_braid_plus_runtime_constants::currency::UNITS as PLUS_UNITS;
+#[cfg(feature = "braid-flow-native")]
+pub use cord_braid_flow_runtime_constants::currency::UNITS as PLUS_UNITS;
+#[cfg(feature = "braid-pulse-native")]
+pub use cord_braid_pulse_runtime_constants::currency::UNITS as BASE_UNITS;
 
-#[cfg(any(feature = "braid-base-native", feature = "braid-plus-native"))]
+#[cfg(any(feature = "braid-pulse-native", feature = "braid-flow-native"))]
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
 
-#[cfg(feature = "braid-base-native")]
-use cord_braid_base_runtime::SessionKeys as BraidBaseSessionKeys;
-#[cfg(feature = "braid-plus-native")]
-use cord_braid_plus_runtime::SessionKeys as BraidPlusSessionKeys;
+#[cfg(feature = "braid-flow-native")]
+use cord_braid_flow_runtime::SessionKeys as BraidPlusSessionKeys;
+#[cfg(feature = "braid-pulse-native")]
+use cord_braid_pulse_runtime::SessionKeys as BraidBaseSessionKeys;
 
 const DEFAULT_PROTOCOL_ID: &str = "cord";
 
@@ -68,25 +68,25 @@ pub struct Extensions {
 pub type GenericChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the braid base runtime.
-#[cfg(feature = "braid-base-native")]
-pub type BraidBaseChainSpec = sc_service::GenericChainSpec<Extensions>;
+#[cfg(feature = "braid-pulse-native")]
+pub type BraidPulseChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the braid base runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.
-#[cfg(not(feature = "braid-base-native"))]
-pub type BraidBaseChainSpec = GenericChainSpec;
+#[cfg(not(feature = "braid-pulse-native"))]
+pub type BraidPulseChainSpec = GenericChainSpec;
 
-/// The `ChainSpec` parameterized for the braid plus runtime.
-#[cfg(feature = "braid-plus-native")]
-pub type BraidPlusChainSpec = sc_service::GenericChainSpec<Extensions>;
+/// The `ChainSpec` parameterized for the braid flow runtime.
+#[cfg(feature = "braid-flow-native")]
+pub type BraidFlowChainSpec = sc_service::GenericChainSpec<Extensions>;
 
-/// The `ChainSpec` parameterized for braid plus runtime.
+/// The `ChainSpec` parameterized for braid flow runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.
-#[cfg(not(feature = "braid-plus-native"))]
-pub type BraidPlusChainSpec = GenericChainSpec;
+#[cfg(not(feature = "braid-flow-native"))]
+pub type BraidFlowChainSpec = GenericChainSpec;
 
-#[cfg(feature = "braid-base-native")]
-fn braid_base_session_keys(
+#[cfg(feature = "braid-pulse-native")]
+fn braid_pulse_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
@@ -95,8 +95,8 @@ fn braid_base_session_keys(
 	BraidBaseSessionKeys { babe, grandpa, im_online, authority_discovery }
 }
 
-#[cfg(feature = "braid-plus-native")]
-fn braid_plus_session_keys(
+#[cfg(feature = "braid-flow-native")]
+fn braid_flow_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
@@ -151,9 +151,9 @@ pub fn get_authority_keys(
 	)
 }
 
-#[cfg(feature = "braid-base-native")]
-fn braid_base_development_config_genesis() -> serde_json::Value {
-	braid_base_local_genesis(
+#[cfg(feature = "braid-pulse-native")]
+fn braid_pulse_development_config_genesis() -> serde_json::Value {
+	braid_pulse_local_genesis(
 		vec![get_authority_keys_from_seed("Alice")],
 		vec![(
 			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
@@ -163,9 +163,9 @@ fn braid_base_development_config_genesis() -> serde_json::Value {
 	)
 }
 
-#[cfg(feature = "braid-base-native")]
-fn braid_base_local_config_genesis() -> serde_json::Value {
-	braid_base_local_genesis(
+#[cfg(feature = "braid-pulse-native")]
+fn braid_pulse_local_config_genesis() -> serde_json::Value {
+	braid_pulse_local_genesis(
 		vec![
 			get_authority_keys_from_seed("Alice"),
 			get_authority_keys_from_seed("Bob"),
@@ -193,17 +193,17 @@ fn braid_base_local_config_genesis() -> serde_json::Value {
 	)
 }
 
-#[cfg(feature = "braid-base-native")]
-pub fn braid_base_development_config() -> Result<BraidBaseChainSpec, String> {
+#[cfg(feature = "braid-pulse-native")]
+pub fn braid_pulse_development_config() -> Result<BraidPulseChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 3893);
-	Ok(BraidBaseChainSpec::builder(
-		cord_braid_base_runtime::WASM_BINARY.ok_or("Braid Base development wasm not available")?,
+	Ok(BraidPulseChainSpec::builder(
+		cord_braid_pulse_runtime::WASM_BINARY.ok_or("Braid Base development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Base Development")
-	.with_id("braid-base-dev")
+	.with_name("Braid Pulse Development")
+	.with_id("braid-pulse-dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(braid_base_development_config_genesis())
+	.with_genesis_config_patch(braid_pulse_development_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -213,17 +213,17 @@ pub fn braid_base_development_config() -> Result<BraidBaseChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-base-native")]
-pub fn braid_base_local_config() -> Result<BraidBaseChainSpec, String> {
+#[cfg(feature = "braid-pulse-native")]
+pub fn braid_pulse_local_config() -> Result<BraidPulseChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 3893);
-	Ok(BraidBaseChainSpec::builder(
-		cord_braid_base_runtime::WASM_BINARY.ok_or("Braid Base wasm not available")?,
+	Ok(BraidPulseChainSpec::builder(
+		cord_braid_pulse_runtime::WASM_BINARY.ok_or("Braid Base wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Base Local Testnet")
-	.with_id("braid-base-local")
+	.with_name("Braid Pulse Local Testnet")
+	.with_id("braid-pulse-local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(braid_base_local_config_genesis())
+	.with_genesis_config_patch(braid_pulse_local_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -233,8 +233,8 @@ pub fn braid_base_local_config() -> Result<BraidBaseChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-base-native")]
-fn braid_base_local_genesis(
+#[cfg(feature = "braid-pulse-native")]
+fn braid_pulse_local_genesis(
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
@@ -262,7 +262,7 @@ fn braid_base_local_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						braid_base_session_keys(
+						braid_pulse_session_keys(
 							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),
@@ -273,15 +273,15 @@ fn braid_base_local_genesis(
 				.collect::<Vec<_>>(),
 		},
 		"babe":  {
-			"epochConfig": Some(cord_braid_base_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_braid_pulse_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"sudo": { "key": Some(root_key) },
 	})
 }
 
-#[cfg(feature = "braid-plus-native")]
-fn braid_plus_development_config_genesis() -> serde_json::Value {
-	braid_plus_local_genesis(
+#[cfg(feature = "braid-flow-native")]
+fn braid_flow_development_config_genesis() -> serde_json::Value {
+	braid_flow_local_genesis(
 		vec![get_authority_keys_from_seed("Alice")],
 		vec![(
 			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
@@ -291,9 +291,9 @@ fn braid_plus_development_config_genesis() -> serde_json::Value {
 	)
 }
 
-#[cfg(feature = "braid-plus-native")]
-fn braid_plus_local_config_genesis() -> serde_json::Value {
-	braid_plus_local_genesis(
+#[cfg(feature = "braid-flow-native")]
+fn braid_flow_local_config_genesis() -> serde_json::Value {
+	braid_flow_local_genesis(
 		vec![
 			get_authority_keys_from_seed("Alice"),
 			get_authority_keys_from_seed("Bob"),
@@ -321,17 +321,17 @@ fn braid_plus_local_config_genesis() -> serde_json::Value {
 	)
 }
 
-#[cfg(feature = "braid-plus-native")]
-pub fn braid_plus_development_config() -> Result<BraidPlusChainSpec, String> {
+#[cfg(feature = "braid-flow-native")]
+pub fn braid_flow_development_config() -> Result<BraidFlowChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 4926);
-	Ok(BraidPlusChainSpec::builder(
-		cord_braid_plus_runtime::WASM_BINARY.ok_or("Braid Plus development wasm not available")?,
+	Ok(BraidFlowChainSpec::builder(
+		cord_braid_flow_runtime::WASM_BINARY.ok_or("Braid Flow development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Plus Development")
-	.with_id("braid-plus-dev")
+	.with_name("Braid Flow Development")
+	.with_id("braid-flow-dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(braid_plus_development_config_genesis())
+	.with_genesis_config_patch(braid_flow_development_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -341,17 +341,17 @@ pub fn braid_plus_development_config() -> Result<BraidPlusChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-plus-native")]
-pub fn braid_plus_local_config() -> Result<BraidPlusChainSpec, String> {
+#[cfg(feature = "braid-flow-native")]
+pub fn braid_flow_local_config() -> Result<BraidFlowChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 4926);
-	Ok(BraidPlusChainSpec::builder(
-		cord_braid_plus_runtime::WASM_BINARY.ok_or("Braid Plus wasm not available")?,
+	Ok(BraidFlowChainSpec::builder(
+		cord_braid_flow_runtime::WASM_BINARY.ok_or("Braid Flow wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Plus Local Testnet")
-	.with_id("braid-plus-local")
+	.with_name("Braid Flow Local Testnet")
+	.with_id("braid-flow-local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(braid_plus_local_config_genesis())
+	.with_genesis_config_patch(braid_flow_local_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -361,8 +361,8 @@ pub fn braid_plus_local_config() -> Result<BraidPlusChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-plus-native")]
-fn braid_plus_local_genesis(
+#[cfg(feature = "braid-flow-native")]
+fn braid_flow_local_genesis(
 	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
 	root_key: AccountId,
@@ -390,7 +390,7 @@ fn braid_plus_local_genesis(
 					(
 						x.0.clone(),
 						x.0.clone(),
-						braid_plus_session_keys(
+						braid_flow_session_keys(
 							x.1.clone(),
 							x.2.clone(),
 							x.3.clone(),
@@ -401,7 +401,7 @@ fn braid_plus_local_genesis(
 				.collect::<Vec<_>>(),
 		},
 		"babe":  {
-			"epochConfig": Some(cord_braid_plus_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_braid_flow_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"councilMembership":  {
 			"members": initial_authorities

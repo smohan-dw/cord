@@ -19,7 +19,7 @@
 use assert_cmd::cargo::cargo_bin;
 use std::{process::Command, result::Result};
 
-static RUNTIMES: &[&str] = &["base", "plus"];
+static RUNTIMES: &[&str] = &["base", "flow"];
 
 static EXTRINSICS: [(&str, &str); 2] = [("system", "remark"), ("balances", "transfer_keep_alive")];
 

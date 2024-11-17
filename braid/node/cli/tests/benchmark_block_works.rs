@@ -35,7 +35,7 @@ use tempfile::tempdir;
 
 pub mod common;
 
-static RUNTIMES: &[&str] = &["base", "plus"];
+static RUNTIMES: &[&str] = &["base", "flow"];
 
 /// `benchmark block` works for all dev runtimes using the wasm executor.
 #[tokio::test]

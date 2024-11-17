@@ -81,11 +81,11 @@ impl BootstrapChainCmd {
 		let chain_type = chain_type?;
 
 		let runtime_type =
-			if ["base", "plus"].contains(&config.runtime_type.to_lowercase().as_str()) {
+			if ["pulse", "flow"].contains(&config.runtime_type.to_lowercase().as_str()) {
 				config.runtime_type.to_lowercase()
 			} else {
 				return Err(format!(
-					"Invalid runtime_type: {}. Supported types are 'base', 'plus'.",
+					"Invalid runtime_type: {}. Supported types are 'pulse', 'flow'.",
 					config.runtime_type
 				)
 				.into());

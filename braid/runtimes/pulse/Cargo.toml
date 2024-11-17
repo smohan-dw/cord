@@ -1,6 +1,6 @@
 [package]
-name = 'cord-braid-base-runtime'
-description = "Braid Base runtime implementation."
+name = 'cord-braid-pulse-runtime'
+description = "Braid pulse runtime implementation."
 version.workspace = true
 authors.workspace = true
 build = 'build.rs'
@@ -34,7 +34,7 @@ primitive-types = { features = [
 authority-membership = { workspace = true }
 cord-primitives = { workspace = true }
 identifier = { workspace = true }
-cord-braid-base-runtime-constants = { workspace = true, optional = true }
+cord-braid-pulse-runtime-constants = { workspace = true, optional = true }
 cord-braid-runtime-common = { workspace = true }
 
 pallet-did = { workspace = true }
@@ -177,7 +177,7 @@ std = [
 	"sp-genesis-builder/std",
 	"sp-session/std",
 	"sp-storage/std",
-	"cord-braid-base-runtime-constants/std",
+	"cord-braid-pulse-runtime-constants/std",
 	"substrate-wasm-builder",
 	"frame-try-runtime?/std",
 	"primitive-types/std",

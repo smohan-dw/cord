@@ -114,9 +114,9 @@ pub trait IsPermissioned {
 #[derive(Debug, Clone, Copy)]
 pub enum Ss58AddressFormatPrefix {
 	/// Default for Braid Base
-	Base = 3893,
+	Pulse = 3893,
 	/// Default for Braid Plus
-	Plus = 4926,
+	Flow = 4926,
 	/// Default for Loom
 	Loom = 29,
 	/// Default for Weave

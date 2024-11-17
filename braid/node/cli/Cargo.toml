@@ -143,20 +143,20 @@ pallet-did-runtime-api = { features = [
 prometheus-endpoint = { workspace = true, default-features = true }
 
 # cord-specific dependencies
-cord-braid-base-runtime = { workspace = true, features = [
+cord-braid-pulse-runtime = { workspace = true, features = [
 	"std",
 ], optional = true }
-cord-braid-plus-runtime = { workspace = true, features = [
+cord-braid-flow-runtime = { workspace = true, features = [
 	"std",
 ], optional = true }
 cord-braid-runtime-common = { workspace = true }
 cord-primitives = { features = ["std"], workspace = true }
 cord-braid-node-inspect = { workspace = true }
 cord-braid-node-rpc = { workspace = true }
-cord-braid-base-runtime-constants = { features = [
+cord-braid-pulse-runtime-constants = { features = [
 	"std",
 ], workspace = true, optional = true }
-cord-braid-plus-runtime-constants = { features = [
+cord-braid-flow-runtime-constants = { features = [
 	"std",
 ], workspace = true, optional = true }
 pallet-config = { features = ["std"], workspace = true }
@@ -223,7 +223,7 @@ pallet-balances = { workspace = true, default-features = true }
 sc-storage-monitor = { workspace = true, default-features = true }
 
 [features]
-default = ["cli", "db", "full-node", "braid-base-native", "braid-plus-native"]
+default = ["cli", "db", "full-node", "braid-pulse-native", "braid-flow-native"]
 
 full-node = ["parity-db"]
 service = []
@@ -246,19 +246,19 @@ db = [
 ]
 
 # Configure the native runtimes to use.
-braid-base-native = [
+braid-pulse-native = [
 	"bitvec",
-	"cord-braid-base-runtime",
-	"cord-braid-base-runtime-constants",
+	"cord-braid-pulse-runtime",
+	"cord-braid-pulse-runtime-constants",
 ]
-braid-plus-native = [
+braid-flow-native = [
 	"bitvec",
-	"cord-braid-plus-runtime",
-	"cord-braid-plus-runtime-constants",
+	"cord-braid-flow-runtime",
+	"cord-braid-flow-runtime-constants",
 ]
 
 runtime-benchmarks = [
-	"cord-braid-plus-runtime/runtime-benchmarks",
+	"cord-braid-flow-runtime/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
@@ -268,7 +268,7 @@ runtime-benchmarks = [
 	"pallet-im-online/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"cord-braid-base-runtime?/runtime-benchmarks",
+	"cord-braid-pulse-runtime?/runtime-benchmarks",
 	"cord-braid-runtime-common/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-config/runtime-benchmarks",
@@ -279,13 +279,13 @@ runtime-benchmarks = [
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"cord-braid-plus-runtime/try-runtime",
+	"cord-braid-flow-runtime/try-runtime",
 	"pallet-balances/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-root-testing/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
-	"cord-braid-base-runtime?/try-runtime",
+	"cord-braid-pulse-runtime?/try-runtime",
 	"cord-braid-runtime-common/try-runtime",
 	"pallet-babe/try-runtime",
 	"pallet-config/try-runtime",

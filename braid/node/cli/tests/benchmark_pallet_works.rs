@@ -21,7 +21,7 @@ use assert_cmd::cargo::cargo_bin;
 use std::process::Command;
 
 // use std::process::Command;
-static RUNTIMES: &[&str] = &["base", "plus"];
+static RUNTIMES: &[&str] = &["base", "flow"];
 
 /// `benchmark pallet` works for the different combinations of `steps` and
 /// `repeat`.

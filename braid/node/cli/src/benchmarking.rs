@@ -39,14 +39,14 @@ macro_rules! identify_chain {
 		$generic_code:expr $(,)*
 	) => {
 		match $chain {
-			Chain::Base => {
-				#[cfg(feature = "braid-base-native")]
+			Chain::Pulse => {
+				#[cfg(feature = "braid-pulse-native")]
 				{
-					use cord_braid_base_runtime as runtime;
+					use cord_braid_pulse_runtime as runtime;
 
 					let call = $generic_code;
 
-					Ok(braid_base_sign_call(
+					Ok(braid_pulse_sign_call(
 						call,
 						$nonce,
 						$current_block,
@@ -56,19 +56,19 @@ macro_rules! identify_chain {
 					))
 				}
 
-				#[cfg(not(feature = "braid-base-native"))]
+				#[cfg(not(feature = "braid-pulse-native"))]
 				{
-					Err("`braid-base-native` feature not enabled")
+					Err("`braid-pulse-native` feature not enabled")
 				}
 			},
-			Chain::Plus => {
-				#[cfg(feature = "braid-plus-native")]
+			Chain::Flow => {
+				#[cfg(feature = "braid-flow-native")]
 				{
-					use cord_braid_plus_runtime as runtime;
+					use cord_braid_flow_runtime as runtime;
 
 					let call = $generic_code;
 
-					Ok(braid_plus_sign_call(
+					Ok(braid_flow_sign_call(
 						call,
 						$nonce,
 						$current_block,
@@ -78,9 +78,9 @@ macro_rules! identify_chain {
 					))
 				}
 
-				#[cfg(not(feature = "braid-plus-native"))]
+				#[cfg(not(feature = "braid-flow-native"))]
 				{
-					Err("`braid-plus-native` feature not enabled")
+					Err("`braid-flow-native` feature not enabled")
 				}
 			},
 			Chain::Unknown => {
@@ -193,9 +193,9 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 	}
 }
 
-#[cfg(feature = "braid-base-native")]
-fn braid_base_sign_call(
-	call: cord_braid_base_runtime::RuntimeCall,
+#[cfg(feature = "braid-pulse-native")]
+fn braid_pulse_sign_call(
+	call: cord_braid_pulse_runtime::RuntimeCall,
 	nonce: u32,
 	current_block: u64,
 	period: u64,
@@ -203,7 +203,7 @@ fn braid_base_sign_call(
 	acc: sp_core::sr25519::Pair,
 ) -> OpaqueExtrinsic {
 	use codec::Encode;
-	use cord_braid_base_runtime as runtime;
+	use cord_braid_pulse_runtime as runtime;
 	use sp_core::Pair;
 
 	let extra: runtime::SignedExtra = (
@@ -245,9 +245,9 @@ fn braid_base_sign_call(
 	.into()
 }
 
-#[cfg(feature = "braid-plus-native")]
-fn braid_plus_sign_call(
-	call: cord_braid_plus_runtime::RuntimeCall,
+#[cfg(feature = "braid-flow-native")]
+fn braid_flow_sign_call(
+	call: cord_braid_flow_runtime::RuntimeCall,
 	nonce: u32,
 	current_block: u64,
 	period: u64,
@@ -255,7 +255,7 @@ fn braid_plus_sign_call(
 	acc: sp_core::sr25519::Pair,
 ) -> OpaqueExtrinsic {
 	use codec::Encode;
-	use cord_braid_plus_runtime as runtime;
+	use cord_braid_flow_runtime as runtime;
 	use sp_core::Pair;
 
 	let extra: runtime::SignedExtra = (

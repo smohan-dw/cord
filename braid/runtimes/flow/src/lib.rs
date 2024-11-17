@@ -72,7 +72,7 @@ pub use pallet_sudo::Call as SudoCall;
 pub use sp_runtime::BuildStorage;
 
 /// Constant values used within the runtime.
-use cord_braid_plus_runtime_constants::{currency::*, fee::WeightToFee, time::*};
+use cord_braid_flow_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 use cord_braid_runtime_common as runtime_common;
 use runtime_common::{SlowAdjustingFeeUpdate, ToTreasury};
 
@@ -105,8 +105,8 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("plus"),
-	impl_name: create_runtime_str!("cord-braid-plus"),
+	spec_name: create_runtime_str!("flow"),
+	impl_name: create_runtime_str!("cord-braid-flow"),
 	authoring_version: 0,
 	spec_version: 9500,
 	impl_version: 0,
@@ -118,7 +118,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// We allow for 2 seconds of block time for computations, with maximum proof size.
 pub const MAXIMUM_BLOCK_WEIGHT: Weight =
 	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
-impl_runtime_weights!(cord_braid_plus_runtime_constants, MAXIMUM_BLOCK_WEIGHT);
+impl_runtime_weights!(cord_braid_flow_runtime_constants, MAXIMUM_BLOCK_WEIGHT);
 
 /// The BABE epoch configuration at genesis.
 pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
