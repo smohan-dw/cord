@@ -233,7 +233,8 @@ sc-storage-monitor = { workspace = true, default-features = true }
 default = ["cli", "db", "full-node", "braid-base-native", "braid-plus-native"]
 
 full-node = ["parity-db"]
-
+service = []
+jemalloc-allocator = ["dep:tikv-jemallocator"]
 cli = [
 	"cord-braid-node-inspect",
 	"sc-cli",

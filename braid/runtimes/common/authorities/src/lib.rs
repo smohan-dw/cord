@@ -27,7 +27,7 @@ pub use pallet::*;
 use sp_staking::SessionIndex;
 use sp_std::{vec, vec::Vec};
 
-#[cfg(any(feature = "mock", test))]
+#[cfg(test)]
 pub mod mock;
 
 #[cfg(test)]
@@ -56,8 +56,26 @@ pub mod pallet {
 	{
 		/// The overreaching event type.
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+
 		#[pallet::constant]
 		type MinAuthorities: Get<u32>;
+
+		#[pallet::constant]
+		type MaxAuthorities: Get<u32>;
+
+		// /// A stable ID for a validator.
+		// type ValidatorId: Member
+		// 	+ Parameter
+		// 	+ Ord
+		// 	+ MaybeSerializeDeserialize
+		// 	+ MaxEncodedLen
+		// 	+ TryFrom<Self::AccountId>;
+
+		// /// A conversion from account ID to validator ID.
+		// ///
+		// /// Its cost must be at most one storage read.
+		// type ValidatorIdOf: Convert<Self::AccountId, Option<Self::ValidatorId>>;
+
 		/// Privileged origin that can add or remove validators.
 		type AuthorityMembershipOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 	}
@@ -73,6 +91,7 @@ pub mod pallet {
 		OutgoingAuthorities(Vec<T::ValidatorId>),
 		/// A member will be added to the authority membership.
 		MemberAdded(T::AccountId),
+
 		/// A member will leave the set of authorities in 2 sessions.
 		MemberGoOffline(T::AccountId),
 		/// A member will enter the set of authorities in 2 sessions.
@@ -108,6 +127,8 @@ pub mod pallet {
 		NetworkMembershipNotFound,
 		/// Authority count below threshold
 		TooLowAuthorityCount,
+		/// Too Many Authorities
+		TooManyAuthorities,
 	}
 
 	/// list incoming authorities
@@ -120,7 +141,8 @@ pub mod pallet {
 
 	/// maps member id to member data
 	#[pallet::storage]
-	pub type Members<T: Config> = StorageValue<_, Vec<T::ValidatorId>, ValueQuery>;
+	pub type Members<T: Config> =
+		StorageValue<_, BoundedVec<T::ValidatorId, T::MaxAuthorities>, ValueQuery>;
 
 	// Blacklist.
 	#[pallet::storage]
@@ -136,7 +158,21 @@ pub mod pallet {
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			assert!(<Members<T>>::get().is_empty(), "Authorities are already initialized!");
-			<Members<T>>::put(&self.initial_authorities);
+			let duplicate_authorities = self
+				.initial_authorities
+				.iter()
+				.map(|x| x.encode())
+				.collect::<sp_std::collections::btree_set::BTreeSet<_>>();
+			assert!(
+				duplicate_authorities.len() == self.initial_authorities.len(),
+				"Duplicate authorities found in genesis configuration."
+			);
+
+			let bounded_authorities =
+				BoundedVec::<_, T::MaxAuthorities>::try_from(self.initial_authorities.clone())
+					.expect("Too many genesis authorities: exceeds T::MaxAuthorities limit");
+
+			<Members<T>>::put(bounded_authorities);
 		}
 	}
 
@@ -261,8 +297,18 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
 	fn add_authority_member(authority: &T::ValidatorId) -> DispatchResult {
-		ensure!(!<Members<T>>::get().contains(authority), Error::<T>::MemberAlreadyExists);
-		Members::<T>::mutate(|v| v.push(authority.clone()));
+		<Members<T>>::try_mutate(|memberlist| {
+			if memberlist.contains(&authority) {
+				return Err::<(), sp_runtime::DispatchError>(
+					Error::<T>::MemberAlreadyExists.into(),
+				);
+			}
+			memberlist
+				.try_push(authority.clone())
+				.map_err(|_| Error::<T>::TooManyAuthorities)?;
+			Ok(())
+		})?;
+
 		Self::mark_for_addition(authority.clone());
 		Ok(())
 	}
@@ -350,7 +396,7 @@ impl<T: Config> pallet_session::SessionManager<T::ValidatorId> for Pallet<T> {
 
 	/// Same as `new_session`, but it this should only be called at genesis.
 	fn new_session_genesis(_new_index: SessionIndex) -> Option<Vec<T::ValidatorId>> {
-		Some(Members::<T>::get().into_iter().collect())
+		Some(Members::<T>::get().into_inner())
 	}
 
 	fn end_session(_: SessionIndex) {}

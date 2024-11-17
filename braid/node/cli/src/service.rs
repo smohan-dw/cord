@@ -52,7 +52,6 @@ pub use crate::{
 };
 pub use cord_primitives::Block;
 use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
-use frame_system_rpc_runtime_api::AccountNonceApi;
 use sc_client_api::Backend as BackendT;
 pub use sc_consensus::{BlockImport, LongestChain};
 pub use sc_executor::NativeExecutionDispatch;

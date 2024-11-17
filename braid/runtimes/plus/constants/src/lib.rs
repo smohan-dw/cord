@@ -32,10 +32,15 @@ pub mod currency {
 	pub const NANO_UNITS: Balance = UNITS / 1_000_000_000; // 10^3 precision
 
 	/// The existential deposit.
-	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * MILLI_UNITS;
+	pub const EXISTENTIAL_DEPOSIT: Balance = 1 * MILLI_UNITS;
+
+	// Provide a common factor between runtimes
+	pub const SUPPLY_FACTOR: Balance = 100;
+	pub const STORAGE_BYTE_FEE: Balance = 100 * MICRO_UNITS * SUPPLY_FACTOR;
+	pub const STORAGE_ITEM_FEE: Balance = 100 * MILLI_UNITS * SUPPLY_FACTOR;
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 100 * UNITS + (bytes as Balance) * 100 * MILLI_UNITS
+		items as Balance * STORAGE_ITEM_FEE + (bytes as Balance) * STORAGE_BYTE_FEE
 	}
 }
 
@@ -48,7 +53,7 @@ pub mod time {
 	// NOTE: Currently it is not possible to change the slot duration after the chain has started.
 	//       Attempting to do so will brick block production.
 	pub const SLOT_DURATION: Moment = MILLISECS_PER_BLOCK;
-	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(4 * HOURS, MINUTES);
+	pub const EPOCH_DURATION_IN_SLOTS: BlockNumber = prod_or_fast!(1 * HOURS, 1 * MINUTES);
 
 	// These time units are defined in number of blocks.
 	pub const MINUTES: BlockNumber = 60_000 / (MILLISECS_PER_BLOCK as BlockNumber);
@@ -122,18 +127,18 @@ mod tests {
 	#[test]
 	// Test that the fee for `MAXIMUM_BLOCK_WEIGHT` of weight has sane bounds.
 	fn full_block_fee_is_correct() {
-		// A full block should cost between 1,00 and 1,000 UNITS.
+		// A full block should cost between 1,000 and 10,000 MICRO UNITS.
 		let full_block = WeightToFee::weight_to_fee(&MAXIMUM_BLOCK_WEIGHT);
 		println!("Full Block {}", full_block);
-		assert!(full_block >= 1_00 * MICRO_UNITS);
-		assert!(full_block <= 2_000 * MICRO_UNITS);
+		assert!(full_block >= 1_000 * MICRO_UNITS);
+		assert!(full_block <= 10_000 * MICRO_UNITS);
 	}
 
 	#[test]
 	// This function tests that the fee for `ExtrinsicBaseWeight` of weight is
 	// correct
 	fn extrinsic_base_fee_is_correct() {
-		// `ExtrinsicBaseWeight` should cost 1/10 of a UNIT
+		// `ExtrinsicBaseWeight` should cost 1/10 of a MICRO UNIT
 		let x = WeightToFee::weight_to_fee(&ExtrinsicBaseWeight::get());
 		let y = MILLI_UNITS / 10;
 		assert!(x.max(y) - x.min(y) < MILLI_UNITS);

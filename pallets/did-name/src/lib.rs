@@ -27,7 +27,7 @@ pub mod did_name;
 
 pub mod weights;
 
-#[cfg(any(feature = "mock", test))]
+#[cfg(test)]
 pub mod mock;
 
 #[cfg(test)]

@@ -99,7 +99,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 #![allow(clippy::unused_unit)]
 
-#[cfg(any(feature = "mock", test))]
+#[cfg(test)]
 pub mod mock;
 
 #[cfg(feature = "runtime-benchmarks")]
@@ -367,10 +367,10 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_encoded_rating > 0 &&
-					entry.count_of_txn > 0 &&
-					entry.total_encoded_rating <=
-						entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				entry.total_encoded_rating > 0
+					&& entry.count_of_txn > 0
+					&& entry.total_encoded_rating
+						<= entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 
@@ -634,10 +634,10 @@ pub mod pallet {
 			.map_err(<pallet_chain_space::Error<T>>::from)?;
 
 			ensure!(
-				entry.total_encoded_rating > 0 &&
-					entry.count_of_txn > 0 &&
-					entry.total_encoded_rating <=
-						entry.count_of_txn * T::MaxRatingValue::get() as u64,
+				entry.total_encoded_rating > 0
+					&& entry.count_of_txn > 0
+					&& entry.total_encoded_rating
+						<= entry.count_of_txn * T::MaxRatingValue::get() as u64,
 				Error::<T>::InvalidRatingValue
 			);
 

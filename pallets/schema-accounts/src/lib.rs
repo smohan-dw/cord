@@ -41,7 +41,7 @@
 
 pub use pallet::*;
 
-#[cfg(any(feature = "mock", test))]
+#[cfg(test)]
 pub mod mock;
 
 /// Test module for Schemas

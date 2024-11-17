@@ -356,8 +356,8 @@ impl<T: Config> DidDetails<T> {
 		new_auth_key: DidVerificationKey<AccountIdOf<T>>,
 	) -> Result<Self, DidError> {
 		ensure!(
-			details.new_key_agreement_keys.len() <=
-				<<T as Config>::MaxNewKeyAgreementKeys>::get().saturated_into::<usize>(),
+			details.new_key_agreement_keys.len()
+				<= <<T as Config>::MaxNewKeyAgreementKeys>::get().saturated_into::<usize>(),
 			errors::InputError::MaxKeyAgreementKeysLimitExceeded
 		);
 
@@ -532,10 +532,10 @@ impl<T: Config> DidDetails<T> {
 	/// i.e., authentication, key agreement, assertion, or delegation, is
 	/// referencing it.
 	pub fn remove_key_if_unused(&mut self, key_id: KeyIdOf<T>) {
-		if self.authentication_key != key_id &&
-			self.assertion_key != Some(key_id) &&
-			self.delegation_key != Some(key_id) &&
-			!self.key_agreement_keys.contains(&key_id)
+		if self.authentication_key != key_id
+			&& self.assertion_key != Some(key_id)
+			&& self.delegation_key != Some(key_id)
+			&& !self.key_agreement_keys.contains(&key_id)
 		{
 			self.public_keys.remove(&key_id);
 		}

@@ -39,7 +39,7 @@
 
 mod types;
 
-#[cfg(any(feature = "mock", test))]
+#[cfg(test)]
 pub mod mock;
 
 #[cfg(test)]
@@ -462,14 +462,15 @@ impl<T: Config> Pallet<T> {
 	/// is actually a valid SS58 Identifier Format and of valid type `Entries`.
 	pub fn is_valid_ss58_format(identifier: &Ss58Identifier) -> bool {
 		match identifier.get_type() {
-			Ok(id_type) =>
+			Ok(id_type) => {
 				if id_type == IdentifierType::Entries {
 					log::debug!("The SS58 identifier is of type Entries.");
 					true
 				} else {
 					log::debug!("The SS58 identifier is not of type Entries.");
 					false
-				},
+				}
+			},
 			Err(e) => {
 				log::debug!("Invalid SS58 identifier. Error: {:?}", e);
 				false

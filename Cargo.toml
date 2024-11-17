@@ -1,6 +1,6 @@
 
 [workspace.package]
-version = "0.9.4"
+version = "0.9.5"
 authors = ['Dhiway Networks <info@dhiway.com>']
 edition = "2021"
 homepage = "https://cord.network"
@@ -11,43 +11,45 @@ license = "GPL-3.0"
 resolver = "2"
 
 members = [
-    "braid/node/cli",
-    "braid/node/rpc",
-    "braid/node/inspect",
-    "pallets/asset",
-    "pallets/chain-space",
-    "pallets/did",
-    "pallets/did-name",
-    "pallets/entries",
-    "pallets/identity",
-    "pallets/network-score",
-    "pallets/node-authorization",
-    "pallets/offences",
-    "pallets/registries",
-    "pallets/runtime-upgrade",
-    "pallets/statement",
-    "pallets/session-benchmarking",
-    "primitives/cord",
-    "primitives/identifier",
-    "primitives/network-membership",
-    "braid/runtimes/common",
-    "braid/runtimes/common/api/assets",
-    "braid/runtimes/common/api/did",
-    "braid/runtimes/common/authorities",
-    "braid/runtimes/base",
-    "braid/runtimes/base/constants",
-    "braid/runtimes/plus",
-    "braid/runtimes/plus/constants",
-    "utilities",
-    "loom",
-    "loom/cli",
-    "loom/node/service",
-    "loom/rpc",
-    "loom/runtime",
-    "weave/runtime/constants",
-    "weave/runtime/coretime",
-    "weave/runtime/asset-hub",
-    "weave/node",
+	"braid/node/cli",
+	"braid/node/rpc",
+	"braid/node/inspect",
+	"pallets/asset",
+	"pallets/chain-space",
+	"pallets/collection",
+	"pallets/did",
+	"pallets/did-name",
+	"pallets/elements",
+	"pallets/entries",
+	"pallets/identity",
+	"pallets/network-score",
+	"pallets/node-authorization",
+	"pallets/offences",
+	"pallets/registries",
+	"pallets/runtime-upgrade",
+	"pallets/did-token",
+	"pallets/session-benchmarking",
+	"primitives/cord",
+	"primitives/identifier",
+	"primitives/network-membership",
+	"braid/runtimes/common",
+	"braid/runtimes/common/api/assets",
+	"braid/runtimes/common/api/did",
+	"braid/runtimes/common/authorities",
+	"braid/runtimes/base",
+	"braid/runtimes/base/constants",
+	"braid/runtimes/plus",
+	"braid/runtimes/plus/constants",
+	"utilities",
+	"loom",
+	"loom/cli",
+	"loom/node/service",
+	"loom/rpc",
+	"loom/runtime",
+	"weave/runtime/constants",
+	"weave/runtime/coretime",
+	"weave/runtime/asset-hub",
+	"weave/node",
 ]
 default-members = ["braid/node/cli"]
 
@@ -149,9 +151,10 @@ cord-weave-coretime-runtime = { path = "weave/runtime/coretime", default-feature
 pallet-config = { path = 'pallets/config/', default-features = false }
 pallet-did = { path = 'pallets/did', default-features = false }
 pallet-did-name = { path = 'pallets/did-name', default-features = false }
+pallet-did-token = { path = 'pallets/did-token', default-features = false }
 pallet-schema = { path = 'pallets/schema', default-features = false }
 pallet-chain-space = { path = 'pallets/chain-space', default-features = false }
-pallet-cord-statement = { path = 'pallets/statement', default-features = false }
+pallet-collection = { path = 'pallets/collection', default-features = false }
 pallet-runtime-upgrade = { path = 'pallets/runtime-upgrade', default-features = false }
 pallet-identity = { path = 'pallets/identity', default-features = false }
 pallet-cord-offences = { path = 'pallets/offences', default-features = false }
@@ -161,6 +164,7 @@ pallet-assets-runtime-api = { path = "braid/runtimes/common/api/assets", default
 pallet-did-runtime-api = { path = "braid/runtimes/common/api/did", default-features = false }
 pallet-registries = { path = "pallets/registries", default-features = false }
 pallet-entries = { path = "pallets/entries", default-features = false }
+pallet-elements = { path = "pallets/elements", default-features = false }
 pallet-schema-accounts = { path = "pallets/schema-accounts", default-features = false }
 
 

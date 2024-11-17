@@ -1,5 +1,3 @@
-// This file is part of CORD – https://cord.network
-
 // Copyright (C) Dhiway Networks Pvt. Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later
 
@@ -22,8 +20,11 @@ pub mod frame_system;
 pub mod pallet_babe;
 pub mod pallet_balances;
 pub mod pallet_chain_space;
+// pub mod pallet_collection;
 pub mod pallet_did;
 pub mod pallet_did_name;
+pub mod pallet_did_token;
+// pub mod pallet_elements;
 pub mod pallet_identity;
 pub mod pallet_im_online;
 pub mod pallet_indices;

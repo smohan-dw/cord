@@ -49,12 +49,6 @@ pub struct MemberData<BlockNumber: Decode + Encode + TypeInfo> {
 	pub expire_on: BlockNumber,
 }
 
-/// Determine if a `MemberId` is a valid member.
-pub trait IsMember<MemberId> {
-	/// Is the given `MemberId` a valid member?
-	fn is_member(member_id: &MemberId) -> bool;
-}
-
 pub trait MembersCount {
 	fn members_count() -> u32;
 }

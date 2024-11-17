@@ -21,8 +21,6 @@
 
 pub use pallet::*;
 
-// use frame_support::traits::Get;
-
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;

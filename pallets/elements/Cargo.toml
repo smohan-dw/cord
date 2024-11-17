@@ -1,6 +1,6 @@
 [package]
-name = 'pallet-statement'
-description = 'Manage Statement Entries.'
+name = 'pallet-elements'
+description = 'Manage Collection Elements.'
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -48,7 +48,7 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"cord-utilities/runtime-benchmarks",
 	"pallet-chain-space/runtime-benchmarks",
-	"pallet-schema/runtime-benchmarks"
+	"pallet-schema/runtime-benchmarks",
 ]
 std = [
 	"codec/std",
@@ -65,7 +65,7 @@ std = [
 	"sp-keystore/std",
 	"pallet-chain-space/std",
 	"pallet-schema/std",
-	"sp-core?/std"
+	"sp-core?/std",
 ]
 
 try-runtime = [
@@ -75,5 +75,5 @@ try-runtime = [
 	"identifier/try-runtime",
 	"pallet-chain-space/try-runtime",
 	"pallet-schema/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]
