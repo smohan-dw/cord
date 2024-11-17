@@ -140,13 +140,6 @@ pallet-contracts = { features = [
 pallet-did-runtime-api = { features = [
 	"std",
 ], workspace = true, default-features = true }
-# pallet-transaction-weight-runtime-api = { features = ["std"], workspace = true }
-pallet-assets-runtime-api = { features = [
-	"std",
-], workspace = true, default-features = true }
-pallet-asset-conversion = { features = [
-	"std",
-], workspace = true, default-features = true }
 prometheus-endpoint = { workspace = true, default-features = true }
 
 # cord-specific dependencies
@@ -277,7 +270,6 @@ runtime-benchmarks = [
 	"sp-runtime/runtime-benchmarks",
 	"cord-braid-base-runtime?/runtime-benchmarks",
 	"cord-braid-runtime-common/runtime-benchmarks",
-	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-config/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
@@ -295,7 +287,6 @@ try-runtime = [
 	"sp-runtime/try-runtime",
 	"cord-braid-base-runtime?/try-runtime",
 	"cord-braid-runtime-common/try-runtime",
-	"pallet-asset-conversion/try-runtime",
 	"pallet-babe/try-runtime",
 	"pallet-config/try-runtime",
 	"pallet-contracts/try-runtime",

@@ -22,7 +22,6 @@
 #![deny(unused_results)]
 
 use crate::cli::Cli;
-use codec::Encode;
 
 #[cfg(feature = "full-node")]
 use {

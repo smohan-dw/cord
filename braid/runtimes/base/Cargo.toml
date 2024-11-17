@@ -55,7 +55,6 @@ pallet-schema-accounts = { workspace = true }
 
 # Internal runtime API (with default disabled)
 pallet-did-runtime-api = { workspace = true }
-pallet-assets-runtime-api = { workspace = true }
 
 # Substrate
 sp-authority-discovery = { features = ["serde"], workspace = true }
@@ -77,8 +76,6 @@ sp-block-builder = { workspace = true }
 sp-genesis-builder = { workspace = true }
 
 pallet-authority-discovery = { workspace = true }
-pallet-assets = { workspace = true }
-pallet-asset-conversion = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
 pallet-balances = { workspace = true }
@@ -135,8 +132,6 @@ std = [
 	"frame-support/std",
 	"frame-benchmarking/std",
 	"frame-executive/std",
-	"pallet-asset-conversion/std",
-	"pallet-assets/std",
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
@@ -169,7 +164,6 @@ std = [
 	"pallet-schema-accounts/std",
 	"pallet-network-score/std",
 	"pallet-runtime-upgrade/std",
-	"pallet-assets-runtime-api/std",
 	"pallet-did-runtime-api/std",
 	"pallet-node-authorization/std",
 	"sp-runtime/std",
@@ -221,8 +215,6 @@ runtime-benchmarks = [
 	"pallet-network-score/runtime-benchmarks",
 	"authority-membership/runtime-benchmarks",
 	"cord-braid-runtime-common/runtime-benchmarks",
-	"pallet-asset-conversion/runtime-benchmarks",
-	"pallet-assets/runtime-benchmarks",
 	"pallet-config/runtime-benchmarks",
 ]
 
@@ -231,8 +223,6 @@ try-runtime = [
 	"frame-try-runtime",
 	"frame-system/try-runtime",
 	"frame-support/try-runtime",
-	"pallet-asset-conversion/try-runtime",
-	"pallet-assets/try-runtime",
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
