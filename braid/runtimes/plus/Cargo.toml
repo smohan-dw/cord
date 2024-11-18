@@ -1,5 +1,5 @@
 [package]
-name = 'cord-braid-flow-runtime'
+name = 'cord-braid-plus-runtime'
 description = "Braid Plus runtime implementation."
 version.workspace = true
 authors.workspace = true
@@ -34,7 +34,7 @@ primitive-types = { features = [
 authority-membership = { workspace = true }
 cord-primitives = { workspace = true }
 identifier = { workspace = true }
-cord-braid-flow-runtime-constants = { workspace = true }
+cord-braid-plus-runtime-constants = { workspace = true }
 cord-braid-runtime-common = { workspace = true }
 
 pallet-membership = { workspace = true }
@@ -47,7 +47,6 @@ pallet-collection = { workspace = true }
 pallet-did-token = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
 pallet-identity = { workspace = true }
-pallet-cord-offences = { workspace = true }
 pallet-node-authorization = { workspace = true }
 pallet-network-score = { workspace = true }
 pallet-session-benchmarking = { workspace = true }
@@ -86,9 +85,9 @@ pallet-contracts = { workspace = true }
 pallet-collective = { workspace = true }
 frame-executive = { workspace = true }
 pallet-grandpa = { workspace = true }
-pallet-im-online = { workspace = true }
 pallet-indices = { workspace = true }
 pallet-multisig = { workspace = true }
+pallet-offences = { workspace = true }
 pallet-preimage = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-session = { features = ["historical"], workspace = true }
@@ -148,12 +147,11 @@ std = [
 	"pallet-contracts/std",
 	"pallet-grandpa/std",
 	"pallet-identity/std",
-	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-insecure-randomness-collective-flip/std",
 	"pallet-membership/std",
 	"pallet-multisig/std",
-	"pallet-cord-offences/std",
+	"pallet-offences/std",
 	"pallet-preimage/std",
 	"pallet-scheduler/std",
 	"pallet-session-benchmarking/std",
@@ -189,7 +187,7 @@ std = [
 	"sp-genesis-builder/std",
 	"sp-session/std",
 	"sp-storage/std",
-	"cord-braid-flow-runtime-constants/std",
+	"cord-braid-plus-runtime-constants/std",
 	"substrate-wasm-builder",
 	"frame-try-runtime?/std",
 	"primitive-types/std",
@@ -210,11 +208,10 @@ runtime-benchmarks = [
 	"pallet-elements/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
 	"pallet-identity/runtime-benchmarks",
-	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
 	"pallet-membership/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
-	"pallet-cord-offences/runtime-benchmarks",
+	"pallet-offences/runtime-benchmarks",
 	"pallet-preimage/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
 	"pallet-session-benchmarking/runtime-benchmarks",
@@ -250,12 +247,11 @@ try-runtime = [
 	"pallet-elements/try-runtime",
 	"pallet-grandpa/try-runtime",
 	"pallet-identity/try-runtime",
-	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
 	"pallet-membership/try-runtime",
 	"pallet-multisig/try-runtime",
-	"pallet-cord-offences/try-runtime",
+	"pallet-offences/try-runtime",
 	"pallet-preimage/try-runtime",
 	"pallet-root-testing/try-runtime",
 	"pallet-scheduler/try-runtime",

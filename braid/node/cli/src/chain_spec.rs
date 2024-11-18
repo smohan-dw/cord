@@ -22,30 +22,39 @@
 pub mod bootstrap;
 
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+// use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use sc_chain_spec::ChainSpecExtension;
-use sc_consensus_grandpa::AuthorityId as GrandpaId;
+// use sc_consensus_grandpa::AuthorityId as GrandpaId;
 pub use sc_service::{ChainType, Properties};
 use serde::{Deserialize, Serialize};
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
+// use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+// use sp_consensus_babe::AuthorityId as BabeId;
+use sp_core::{Pair, Public};
+use sp_runtime::traits::Verify;
 type AccountPublic = <Signature as Verify>::Signer;
 use sc_telemetry::TelemetryEndpoints;
 
-#[cfg(feature = "braid-flow-native")]
-pub use cord_braid_flow_runtime_constants::currency::UNITS as PLUS_UNITS;
-#[cfg(feature = "braid-pulse-native")]
-pub use cord_braid_pulse_runtime_constants::currency::UNITS as BASE_UNITS;
+#[cfg(feature = "braid-plus-native")]
+pub use cord_braid_plus_runtime::genesis_config_presets::{
+	braid_plus_development_config_genesis, braid_plus_local_testnet_genesis,
+};
 
-#[cfg(any(feature = "braid-pulse-native", feature = "braid-flow-native"))]
+#[cfg(feature = "braid-base-native")]
+pub use cord_braid_base_runtime::genesis_config_presets::{
+	braid_base_development_config_genesis, braid_base_local_testnet_genesis,
+};
+
+#[cfg(feature = "braid-twist-native")]
+pub use cord_braid_twist_runtime::genesis_config_presets::{
+	braid_twist_development_config_genesis, braid_twist_local_testnet_genesis,
+};
+
+#[cfg(any(
+	feature = "braid-base-native",
+	feature = "braid-plus-native",
+	feature = "braid-twist-native"
+))]
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
-
-#[cfg(feature = "braid-flow-native")]
-use cord_braid_flow_runtime::SessionKeys as BraidPlusSessionKeys;
-#[cfg(feature = "braid-pulse-native")]
-use cord_braid_pulse_runtime::SessionKeys as BraidBaseSessionKeys;
 
 const DEFAULT_PROTOCOL_ID: &str = "cord";
 
@@ -68,42 +77,31 @@ pub struct Extensions {
 pub type GenericChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the braid base runtime.
-#[cfg(feature = "braid-pulse-native")]
-pub type BraidPulseChainSpec = sc_service::GenericChainSpec<Extensions>;
+#[cfg(feature = "braid-base-native")]
+pub type BraidBaseChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for the braid base runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.
-#[cfg(not(feature = "braid-pulse-native"))]
-pub type BraidPulseChainSpec = GenericChainSpec;
+#[cfg(not(feature = "braid-base-native"))]
+pub type BraidBaseChainSpec = GenericChainSpec;
 
-/// The `ChainSpec` parameterized for the braid flow runtime.
-#[cfg(feature = "braid-flow-native")]
-pub type BraidFlowChainSpec = sc_service::GenericChainSpec<Extensions>;
+/// The `ChainSpec` parameterized for the braid plus runtime.
+#[cfg(feature = "braid-plus-native")]
+pub type BraidPlusChainSpec = sc_service::GenericChainSpec<Extensions>;
 
 /// The `ChainSpec` parameterized for braid flow runtime.
 // Dummy chain spec, but that is fine when we don't have the native runtime.
-#[cfg(not(feature = "braid-flow-native"))]
-pub type BraidFlowChainSpec = GenericChainSpec;
+#[cfg(not(feature = "braid-plus-native"))]
+pub type BraidPlusChainSpec = GenericChainSpec;
 
-#[cfg(feature = "braid-pulse-native")]
-fn braid_pulse_session_keys(
-	babe: BabeId,
-	grandpa: GrandpaId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> BraidBaseSessionKeys {
-	BraidBaseSessionKeys { babe, grandpa, im_online, authority_discovery }
-}
+/// The `ChainSpec` parameterized for the braid twist runtime.
+#[cfg(feature = "braid-twist-native")]
+pub type BraidTwistChainSpec = sc_service::GenericChainSpec<Extensions>;
 
-#[cfg(feature = "braid-flow-native")]
-fn braid_flow_session_keys(
-	babe: BabeId,
-	grandpa: GrandpaId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> BraidPlusSessionKeys {
-	BraidPlusSessionKeys { babe, grandpa, im_online, authority_discovery }
-}
+// The `ChainSpec` parameterized for braid flow runtime.
+// Dummy chain spec, but that is fine when we don't have the native runtime.
+#[cfg(not(feature = "braid-twist-native"))]
+pub type BraidTwistChainSpec = GenericChainSpec;
 
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -122,88 +120,17 @@ pub fn get_properties(symbol: &str, decimals: u32, ss58format: u32) -> Propertie
 	properties
 }
 
-/// Helper function to generate an account ID from seed
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
-}
-
-/// Helper function to generate controller and session key from seed
-pub fn get_authority_keys_from_seed(
-	seed: &str,
-) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
-	let keys = get_authority_keys(seed);
-	(keys.0, keys.1, keys.2, keys.3, keys.4)
-}
-
-/// Helper function to generate  controller and session key from seed
-pub fn get_authority_keys(
-	seed: &str,
-) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
-	(
-		get_account_id_from_seed::<sr25519::Public>(seed),
-		get_from_seed::<BabeId>(seed),
-		get_from_seed::<GrandpaId>(seed),
-		get_from_seed::<ImOnlineId>(seed),
-		get_from_seed::<AuthorityDiscoveryId>(seed),
-	)
-}
-
-#[cfg(feature = "braid-pulse-native")]
-fn braid_pulse_development_config_genesis() -> serde_json::Value {
-	braid_pulse_local_genesis(
-		vec![get_authority_keys_from_seed("Alice")],
-		vec![(
-			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-		)],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
-#[cfg(feature = "braid-pulse-native")]
-fn braid_pulse_local_config_genesis() -> serde_json::Value {
-	braid_pulse_local_genesis(
-		vec![
-			get_authority_keys_from_seed("Alice"),
-			get_authority_keys_from_seed("Bob"),
-			get_authority_keys_from_seed("Charlie"),
-		],
-		vec![
-			(
-				b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			),
-			(
-				b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-			),
-			(
-				b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			),
-			(
-				b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-			),
-		],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
-#[cfg(feature = "braid-pulse-native")]
-pub fn braid_pulse_development_config() -> Result<BraidPulseChainSpec, String> {
+#[cfg(feature = "braid-base-native")]
+pub fn braid_base_development_config() -> Result<BraidBaseChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 3893);
-	Ok(BraidPulseChainSpec::builder(
-		cord_braid_pulse_runtime::WASM_BINARY.ok_or("Braid Base development wasm not available")?,
+	Ok(BraidBaseChainSpec::builder(
+		cord_braid_base_runtime::WASM_BINARY.ok_or("Braid Base development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Pulse Development")
-	.with_id("braid-pulse-dev")
+	.with_name("Braid Base Development")
+	.with_id("braid-base-dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(braid_pulse_development_config_genesis())
+	.with_genesis_config_patch(braid_base_development_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -213,17 +140,17 @@ pub fn braid_pulse_development_config() -> Result<BraidPulseChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-pulse-native")]
-pub fn braid_pulse_local_config() -> Result<BraidPulseChainSpec, String> {
+#[cfg(feature = "braid-base-native")]
+pub fn braid_base_local_config() -> Result<BraidBaseChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 3893);
-	Ok(BraidPulseChainSpec::builder(
-		cord_braid_pulse_runtime::WASM_BINARY.ok_or("Braid Base wasm not available")?,
+	Ok(BraidBaseChainSpec::builder(
+		cord_braid_base_runtime::WASM_BINARY.ok_or("Braid Base wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Pulse Local Testnet")
-	.with_id("braid-pulse-local")
+	.with_name("Braid Base Local Testnet")
+	.with_id("braid-base-local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(braid_pulse_local_config_genesis())
+	.with_genesis_config_preset_name("braid-base-local")
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -233,105 +160,17 @@ pub fn braid_pulse_local_config() -> Result<BraidPulseChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-pulse-native")]
-fn braid_pulse_local_genesis(
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
-	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
-	root_key: AccountId,
-) -> serde_json::Value {
-	const ENDOWMENT: Balance = 50_000_000 * BASE_UNITS;
-
-	serde_json::json!( {
-		"balances": {
-			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
-		},
-		"networkParameters": {"permissioned": true},
-		"nodeAuthorization":  {
-			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"authorityMembership":  {
-			"initialAuthorities": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"session":  {
-			"keys": initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						braid_pulse_session_keys(
-							x.1.clone(),
-							x.2.clone(),
-							x.3.clone(),
-							x.4.clone(),
-						),
-					)
-				})
-				.collect::<Vec<_>>(),
-		},
-		"babe":  {
-			"epochConfig": Some(cord_braid_pulse_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		"sudo": { "key": Some(root_key) },
-	})
-}
-
-#[cfg(feature = "braid-flow-native")]
-fn braid_flow_development_config_genesis() -> serde_json::Value {
-	braid_flow_local_genesis(
-		vec![get_authority_keys_from_seed("Alice")],
-		vec![(
-			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-		)],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
-#[cfg(feature = "braid-flow-native")]
-fn braid_flow_local_config_genesis() -> serde_json::Value {
-	braid_flow_local_genesis(
-		vec![
-			get_authority_keys_from_seed("Alice"),
-			get_authority_keys_from_seed("Bob"),
-			get_authority_keys_from_seed("Charlie"),
-		],
-		vec![
-			(
-				b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			),
-			(
-				b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-			),
-			(
-				b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			),
-			(
-				b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-			),
-		],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
-#[cfg(feature = "braid-flow-native")]
-pub fn braid_flow_development_config() -> Result<BraidFlowChainSpec, String> {
+#[cfg(feature = "braid-plus-native")]
+pub fn braid_plus_development_config() -> Result<BraidPlusChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 4926);
-	Ok(BraidFlowChainSpec::builder(
-		cord_braid_flow_runtime::WASM_BINARY.ok_or("Braid Flow development wasm not available")?,
+	Ok(BraidPlusChainSpec::builder(
+		cord_braid_plus_runtime::WASM_BINARY.ok_or("Braid Plus development wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Flow Development")
-	.with_id("braid-flow-dev")
+	.with_name("Braid Plus Development")
+	.with_id("braid-plus-dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(braid_flow_development_config_genesis())
+	.with_genesis_config_patch(braid_plus_local_testnet_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -341,17 +180,17 @@ pub fn braid_flow_development_config() -> Result<BraidFlowChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-flow-native")]
-pub fn braid_flow_local_config() -> Result<BraidFlowChainSpec, String> {
+#[cfg(feature = "braid-plus-native")]
+pub fn braid_plus_local_config() -> Result<BraidPlusChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 4926);
-	Ok(BraidFlowChainSpec::builder(
-		cord_braid_flow_runtime::WASM_BINARY.ok_or("Braid Flow wasm not available")?,
+	Ok(BraidPlusChainSpec::builder(
+		cord_braid_plus_runtime::WASM_BINARY.ok_or("Braid Plus wasm not available")?,
 		Default::default(),
 	)
-	.with_name("Braid Flow Local Testnet")
-	.with_id("braid-flow-local")
+	.with_name("Braid Plus Local Testnet")
+	.with_id("braid-plus-local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(braid_flow_local_config_genesis())
+	.with_genesis_config_patch(braid_plus_local_testnet_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -361,60 +200,43 @@ pub fn braid_flow_local_config() -> Result<BraidFlowChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "braid-flow-native")]
-fn braid_flow_local_genesis(
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
-	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
-	root_key: AccountId,
-) -> serde_json::Value {
-	const ENDOWMENT: Balance = 50_000_000 * PLUS_UNITS;
+#[cfg(feature = "braid-twist-native")]
+pub fn braid_twist_development_config() -> Result<BraidTwistChainSpec, String> {
+	let properties = get_properties("UNITS", 12, 5126);
+	Ok(BraidTwistChainSpec::builder(
+		cord_braid_twist_runtime::WASM_BINARY
+			.ok_or("Braid Twist development wasm not available")?,
+		Default::default(),
+	)
+	.with_name("Braid Twist Development")
+	.with_id("braid-twist-dev")
+	.with_chain_type(ChainType::Development)
+	.with_genesis_config_patch(braid_twist_local_testnet_genesis())
+	.with_telemetry_endpoints(
+		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+			.expect("Cord telemetry url is valid; qed"),
+	)
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+	.with_properties(properties)
+	.build())
+}
 
-	serde_json::json!( {
-		"balances": {
-			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
-		},
-		"networkParameters": {"permissioned": true},
-		"nodeAuthorization":  {
-			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"authorityMembership":  {
-			"initialAuthorities": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"session":  {
-			"keys": initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						braid_flow_session_keys(
-							x.1.clone(),
-							x.2.clone(),
-							x.3.clone(),
-							x.4.clone(),
-						),
-					)
-				})
-				.collect::<Vec<_>>(),
-		},
-		"babe":  {
-			"epochConfig": Some(cord_braid_flow_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		"councilMembership":  {
-			"members": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"technicalMembership":  {
-			"members": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"sudo": { "key": Some(root_key) },
-	})
+#[cfg(feature = "braid-twist-native")]
+pub fn braid_twist_local_config() -> Result<BraidTwistChainSpec, String> {
+	let properties = get_properties("UNITS", 12, 5126);
+	Ok(BraidTwistChainSpec::builder(
+		cord_braid_twist_runtime::WASM_BINARY.ok_or("Braid Twist wasm not available")?,
+		Default::default(),
+	)
+	.with_name("Braid Twist Local Testnet")
+	.with_id("braid-twist-local")
+	.with_chain_type(ChainType::Local)
+	.with_genesis_config_patch(braid_twist_local_testnet_genesis())
+	.with_telemetry_endpoints(
+		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
+			.expect("Cord telemetry url is valid; qed"),
+	)
+	.with_protocol_id(DEFAULT_PROTOCOL_ID)
+	.with_properties(properties)
+	.build())
 }

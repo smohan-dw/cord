@@ -1,5 +1,5 @@
 [package]
-name = "cord-braid-pulse-runtime-constants"
+name = "cord-braid-base-runtime-constants"
 description = "Braid Base runtime constants."
 version.workspace = true
 authors.workspace = true

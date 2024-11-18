@@ -82,21 +82,31 @@ pub enum Subcommand {
 	ChainInfo(sc_cli::ChainInfoCmd),
 
 	/// Start Braid Base development node
-	Pulse {
+	Base {
 		#[clap(
 			long = "dev",
 			required = true,
-			help = "Run the Braid Pulse node in development mode"
+			help = "Run the Braid Base node in development mode"
 		)]
 		dev: bool,
 	},
 
 	/// Start Braid Plus development node
-	Flow {
+	Plus {
 		#[clap(
 			long = "dev",
 			required = true,
-			help = "Run the Braid Flow node in development mode"
+			help = "Run the Braid Plus node in development mode"
+		)]
+		dev: bool,
+	},
+
+	/// Start Braid Plus development node
+	Twist {
+		#[clap(
+			long = "dev",
+			required = true,
+			help = "Run the Braid Twist node in development mode"
 		)]
 		dev: bool,
 	},

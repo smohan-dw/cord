@@ -20,8 +20,6 @@
 #![warn(unused_extern_crates)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub mod impls;
-
 use frame_support::{dispatch::DispatchResult, ensure, pallet_prelude::*, traits::EnsureOrigin};
 pub use pallet::*;
 use sp_staking::SessionIndex;
@@ -63,19 +61,6 @@ pub mod pallet {
 		#[pallet::constant]
 		type MaxAuthorities: Get<u32>;
 
-		// /// A stable ID for a validator.
-		// type ValidatorId: Member
-		// 	+ Parameter
-		// 	+ Ord
-		// 	+ MaybeSerializeDeserialize
-		// 	+ MaxEncodedLen
-		// 	+ TryFrom<Self::AccountId>;
-
-		// /// A conversion from account ID to validator ID.
-		// ///
-		// /// Its cost must be at most one storage read.
-		// type ValidatorIdOf: Convert<Self::AccountId, Option<Self::ValidatorId>>;
-
 		/// Privileged origin that can add or remove validators.
 		type AuthorityMembershipOrigin: EnsureOrigin<<Self as frame_system::Config>::RuntimeOrigin>;
 	}
@@ -91,20 +76,12 @@ pub mod pallet {
 		OutgoingAuthorities(Vec<T::ValidatorId>),
 		/// A member will be added to the authority membership.
 		MemberAdded(T::AccountId),
-
 		/// A member will leave the set of authorities in 2 sessions.
 		MemberGoOffline(T::AccountId),
 		/// A member will enter the set of authorities in 2 sessions.
 		MemberGoOnline(T::AccountId),
 		/// this member will be removed from the authority set in 2 sessions.
 		MemberRemoved(T::AccountId),
-		/// A member has been removed from the blacklist.
-		MemberWhiteList(T::AccountId),
-		/// A member is scheduled for removal in 2 sessions due to non-availability.
-		MemberDisconnected(T::ValidatorId),
-		/// A member is added to the blacklist and is scheduled for removal in 2 sessions due to
-		/// non-availability.
-		MemberBlacklistedRemoved(T::ValidatorId),
 	}
 
 	#[pallet::error]
@@ -117,12 +94,8 @@ pub mod pallet {
 		MemberAlreadyOutgoing,
 		/// There is no authority with the given ID.
 		MemberNotFound,
-		/// Member is blacklisted
-		MemberBlackListed,
 		/// Session keys not provided
 		SessionKeysNotAdded,
-		/// Member not blacklisted
-		MemberNotBlackListed,
 		/// Not a network member
 		NetworkMembershipNotFound,
 		/// Authority count below threshold
@@ -143,10 +116,6 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type Members<T: Config> =
 		StorageValue<_, BoundedVec<T::ValidatorId, T::MaxAuthorities>, ValueQuery>;
-
-	// Blacklist.
-	#[pallet::storage]
-	pub type BlackList<T: Config> = StorageValue<_, Vec<T::ValidatorId>, ValueQuery>;
 
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
@@ -188,10 +157,6 @@ pub mod pallet {
 			let member = T::ValidatorIdOf::convert(candidate.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
 
-			if Self::is_blacklisted(&member) {
-				return Err(Error::<T>::MemberBlackListed.into());
-			}
-
 			if Self::is_incoming(&member) {
 				return Err(Error::<T>::MemberAlreadyIncoming.into());
 			}
@@ -232,29 +197,9 @@ pub mod pallet {
 			Ok(())
 		}
 
-		/// Remove members from blacklist.
-		#[pallet::call_index(2)]
-		#[pallet::weight({200_000})]
-		pub fn remove_member_from_blacklist(
-			origin: OriginFor<T>,
-			candidate: T::AccountId,
-		) -> DispatchResult {
-			T::AuthorityMembershipOrigin::ensure_origin(origin)?;
-
-			let member = T::ValidatorIdOf::convert(candidate.clone())
-				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
-
-			ensure!(<BlackList<T>>::get().contains(&member), Error::<T>::MemberNotBlackListed);
-
-			Self::remove_from_blacklist(&member)?;
-
-			Self::deposit_event(Event::MemberWhiteList(candidate));
-			Ok(())
-		}
-
 		/// Mark an authority member offline.
 		/// The authority will be deactivated from current session + 2.
-		#[pallet::call_index(3)]
+		#[pallet::call_index(2)]
 		#[pallet::weight({200_000})]
 		pub fn go_offline(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
@@ -274,16 +219,12 @@ pub mod pallet {
 
 		/// Mark an authority member going online.
 		/// Authority will be activated from current session + 2.
-		#[pallet::call_index(4)]
+		#[pallet::call_index(3)]
 		#[pallet::weight({200_000})]
 		pub fn go_online(origin: OriginFor<T>) -> DispatchResult {
 			let who = ensure_signed(origin)?;
 			let member = T::ValidatorIdOf::convert(who.clone())
 				.ok_or(pallet_session::Error::<T>::NoAssociatedValidatorId)?;
-
-			if Self::is_blacklisted(&member) {
-				return Err(Error::<T>::MemberBlackListed.into());
-			}
 
 			ensure!(<Members<T>>::get().contains(&member), Error::<T>::MemberNotFound);
 
@@ -324,28 +265,13 @@ impl<T: Config> Pallet<T> {
 		Self::mark_for_removal(authority.clone());
 		Ok(())
 	}
-	fn remove_from_blacklist(authority: &T::ValidatorId) -> DispatchResult {
-		BlackList::<T>::mutate(|vs| vs.retain(|v| *v != *authority));
-		Ok(())
-	}
 	// Adds offline authorities to a local cache for removal.
 	fn mark_for_removal(authority: T::ValidatorId) {
 		OutgoingAuthorities::<T>::mutate(|v| v.push(authority));
 	}
-	// Adds offline authorities reported by imOnline to a local cache for removal.
-	fn mark_for_disconnect(authority: T::ValidatorId) {
-		OutgoingAuthorities::<T>::mutate(|v| v.push(authority.clone()));
-		Self::deposit_event(Event::MemberDisconnected(authority));
-	}
 	// Adds offline authorities to a local cache for readdition.
 	fn mark_for_addition(authority: T::ValidatorId) {
 		IncomingAuthorities::<T>::mutate(|v| v.push(authority));
-	}
-	// Adds offline authorities to a local cache for removal and blacklist.
-	fn mark_for_blacklist_and_removal(authority: T::ValidatorId) {
-		BlackList::<T>::mutate(|v| v.push(authority.clone()));
-		OutgoingAuthorities::<T>::mutate(|v| v.push(authority.clone()));
-		Self::deposit_event(Event::MemberBlacklistedRemoved(authority));
 	}
 	/// check if authority is incoming
 	fn is_incoming(authority: &T::ValidatorId) -> bool {
@@ -354,10 +280,6 @@ impl<T: Config> Pallet<T> {
 	/// check if authority is outgoing
 	fn is_outgoing(authority: &T::ValidatorId) -> bool {
 		OutgoingAuthorities::<T>::get().contains(authority)
-	}
-	/// check if authority is blacklisted
-	fn is_blacklisted(authority: &T::ValidatorId) -> bool {
-		BlackList::<T>::get().contains(authority)
 	}
 }
 

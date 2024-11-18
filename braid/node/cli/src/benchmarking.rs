@@ -39,14 +39,14 @@ macro_rules! identify_chain {
 		$generic_code:expr $(,)*
 	) => {
 		match $chain {
-			Chain::Pulse => {
-				#[cfg(feature = "braid-pulse-native")]
+			Chain::Base => {
+				#[cfg(feature = "braid-base-native")]
 				{
-					use cord_braid_pulse_runtime as runtime;
+					use cord_braid_base_runtime as runtime;
 
 					let call = $generic_code;
 
-					Ok(braid_pulse_sign_call(
+					Ok(braid_base_sign_call(
 						call,
 						$nonce,
 						$current_block,
@@ -56,19 +56,19 @@ macro_rules! identify_chain {
 					))
 				}
 
-				#[cfg(not(feature = "braid-pulse-native"))]
+				#[cfg(not(feature = "braid-base-native"))]
 				{
-					Err("`braid-pulse-native` feature not enabled")
+					Err("`braid-base-native` feature not enabled")
 				}
 			},
-			Chain::Flow => {
-				#[cfg(feature = "braid-flow-native")]
+			Chain::Plus => {
+				#[cfg(feature = "braid-plus-native")]
 				{
-					use cord_braid_flow_runtime as runtime;
+					use cord_braid_plus_runtime as runtime;
 
 					let call = $generic_code;
 
-					Ok(braid_flow_sign_call(
+					Ok(braid_plus_sign_call(
 						call,
 						$nonce,
 						$current_block,
@@ -78,9 +78,31 @@ macro_rules! identify_chain {
 					))
 				}
 
-				#[cfg(not(feature = "braid-flow-native"))]
+				#[cfg(not(feature = "braid-plus-native"))]
 				{
-					Err("`braid-flow-native` feature not enabled")
+					Err("`braid-plus-native` feature not enabled")
+				}
+			},
+			Chain::Twist => {
+				#[cfg(feature = "braid-twist-native")]
+				{
+					use cord_braid_twist_runtime as runtime;
+
+					let call = $generic_code;
+
+					Ok(braid_twist_sign_call(
+						call,
+						$nonce,
+						$current_block,
+						$period,
+						$genesis,
+						$signer,
+					))
+				}
+
+				#[cfg(not(feature = "braid-twist-native"))]
+				{
+					Err("`braid-twist-native` feature not enabled")
 				}
 			},
 			Chain::Unknown => {
@@ -193,9 +215,9 @@ impl frame_benchmarking_cli::ExtrinsicBuilder for TransferKeepAliveBuilder {
 	}
 }
 
-#[cfg(feature = "braid-pulse-native")]
-fn braid_pulse_sign_call(
-	call: cord_braid_pulse_runtime::RuntimeCall,
+#[cfg(feature = "braid-base-native")]
+fn braid_base_sign_call(
+	call: cord_braid_base_runtime::RuntimeCall,
 	nonce: u32,
 	current_block: u64,
 	period: u64,
@@ -203,7 +225,7 @@ fn braid_pulse_sign_call(
 	acc: sp_core::sr25519::Pair,
 ) -> OpaqueExtrinsic {
 	use codec::Encode;
-	use cord_braid_pulse_runtime as runtime;
+	use cord_braid_base_runtime as runtime;
 	use sp_core::Pair;
 
 	let extra: runtime::SignedExtra = (
@@ -245,9 +267,9 @@ fn braid_pulse_sign_call(
 	.into()
 }
 
-#[cfg(feature = "braid-flow-native")]
-fn braid_flow_sign_call(
-	call: cord_braid_flow_runtime::RuntimeCall,
+#[cfg(feature = "braid-plus-native")]
+fn braid_plus_sign_call(
+	call: cord_braid_plus_runtime::RuntimeCall,
 	nonce: u32,
 	current_block: u64,
 	period: u64,
@@ -255,7 +277,59 @@ fn braid_flow_sign_call(
 	acc: sp_core::sr25519::Pair,
 ) -> OpaqueExtrinsic {
 	use codec::Encode;
-	use cord_braid_flow_runtime as runtime;
+	use cord_braid_plus_runtime as runtime;
+	use sp_core::Pair;
+
+	let extra: runtime::SignedExtra = (
+		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
+		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
+		frame_system::CheckTxVersion::<runtime::Runtime>::new(),
+		frame_system::CheckGenesis::<runtime::Runtime>::new(),
+		frame_system::CheckMortality::<runtime::Runtime>::from(sp_runtime::generic::Era::mortal(
+			period,
+			current_block,
+		)),
+		frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
+		frame_system::CheckWeight::<runtime::Runtime>::new(),
+		pallet_transaction_payment::ChargeTransactionPayment::<runtime::Runtime>::from(0),
+	);
+
+	let payload = runtime::SignedPayload::from_raw(
+		call.clone(),
+		extra.clone(),
+		(
+			(),
+			runtime::VERSION.spec_version,
+			runtime::VERSION.transaction_version,
+			genesis,
+			genesis,
+			(),
+			(),
+			(),
+		),
+	);
+
+	let signature = payload.using_encoded(|p| acc.sign(p));
+	runtime::UncheckedExtrinsic::new_signed(
+		call,
+		sp_runtime::AccountId32::from(acc.public()).into(),
+		cord_primitives::Signature::Sr25519(signature),
+		extra,
+	)
+	.into()
+}
+
+#[cfg(feature = "braid-twist-native")]
+fn braid_twist_sign_call(
+	call: cord_braid_twist_runtime::RuntimeCall,
+	nonce: u32,
+	current_block: u64,
+	period: u64,
+	genesis: sp_core::H256,
+	acc: sp_core::sr25519::Pair,
+) -> OpaqueExtrinsic {
+	use codec::Encode;
+	use cord_braid_twist_runtime as runtime;
 	use sp_core::Pair;
 
 	let extra: runtime::SignedExtra = (

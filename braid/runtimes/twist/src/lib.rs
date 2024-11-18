@@ -24,28 +24,23 @@ extern crate alloc;
 
 use cord_braid_runtime_common::{impl_runtime_weights, prod_or_fast, BlockHashCount, BlockLength};
 pub use cord_primitives::{AccountId, Signature};
-use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce};
-pub use identifier::Ss58Identifier;
+use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce};
 use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
 
 use frame_support::{
-	derive_impl,
+	construct_runtime,
 	genesis_builder_helper::{build_state, get_preset},
-	instances::{Instance1, Instance2},
-	ord_parameter_types, parameter_types,
+	parameter_types,
 	traits::{
-		fungible::{HoldConsideration, NativeFromLeft, NativeOrWithId, UnionOf},
-		tokens::imbalance::ResolveAssetTo,
-		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, Contains, EitherOfDiverse,
-		KeyOwnerProofSystem, LinearStoragePrice, PrivilegeCmp, VariantCountOf,
+		fungible::HoldConsideration, ConstBool, ConstU32, Contains, KeyOwnerProofSystem,
+		LinearStoragePrice, PrivilegeCmp, VariantCountOf,
 	},
 	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier},
 	PalletId,
 };
-use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy, EnsureWithSuccess};
+use frame_system::{EnsureRoot, EnsureSigned, EnsureWithSuccess};
 pub use pallet_balances::Call as BalancesCall;
 use pallet_identity::legacy::IdentityInfo;
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
@@ -54,11 +49,10 @@ use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT,
-		Extrinsic as ExtrinsicT, IdentityLookup, NumberFor, OpaqueKeys, SaturatedConversion,
-		Verify,
+		AccountIdLookup, BlakeTwo256, Block as BlockT, Extrinsic as ExtrinsicT, IdentityLookup,
+		NumberFor, OpaqueKeys, SaturatedConversion, Verify,
 	},
-	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
+	transaction_validity::{TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Percent, Permill,
 };
 use sp_staking::SessionIndex;
@@ -75,9 +69,9 @@ pub use pallet_sudo::Call as SudoCall;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
 
-/// Constant values used within the runtime.
-use cord_braid_flow_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 use cord_braid_runtime_common as runtime_common;
+/// Constant values used within the runtime.
+use cord_braid_twist_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 use runtime_common::{SlowAdjustingFeeUpdate, ToTreasury};
 
 // Weights used in the runtime.
@@ -86,6 +80,8 @@ mod weights;
 pub use authority_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
+// Genesis preset configurations.
+pub mod genesis_config_presets;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -109,10 +105,10 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("flow"),
-	impl_name: create_runtime_str!("cord-braid-flow"),
+	spec_name: create_runtime_str!("twist"),
+	impl_name: create_runtime_str!("cord-braid-twist"),
 	authoring_version: 0,
-	spec_version: 9400,
+	spec_version: 9500,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -122,7 +118,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 /// We allow for 2 seconds of block time for computations, with maximum proof size.
 pub const MAXIMUM_BLOCK_WEIGHT: Weight =
 	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
-impl_runtime_weights!(cord_braid_flow_runtime_constants, MAXIMUM_BLOCK_WEIGHT);
+impl_runtime_weights!(cord_braid_twist_runtime_constants, MAXIMUM_BLOCK_WEIGHT);
 
 /// The BABE epoch configuration at genesis.
 pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
@@ -145,39 +141,41 @@ impl Contains<RuntimeCall> for BaseFilter {
 	}
 }
 
-type MoreThanHalfCouncil = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, CouncilCollective, 1, 2>,
->;
-
-type EnsureRootOrCommitteeApproval = EitherOfDiverse<
-	EnsureRoot<AccountId>,
-	pallet_collective::EnsureProportionMoreThan<AccountId, TechnicalCollective, 3, 5>,
->;
-
 parameter_types! {
    pub const Version: RuntimeVersion = VERSION;
    pub const SS58Prefix: u16 = 4926;
 }
 
-#[derive_impl(frame_system::config_preludes::SolochainDefaultConfig)]
 impl frame_system::Config for Runtime {
 	type BaseCallFilter = BaseFilter;
 	type BlockWeights = BlockWeights;
 	type BlockLength = BlockLength;
-	type DbWeight = RocksDbWeight;
+	type RuntimeOrigin = RuntimeOrigin;
+	type RuntimeCall = RuntimeCall;
 	type Nonce = Nonce;
 	type Hash = Hash;
+	type Hashing = BlakeTwo256;
 	type AccountId = AccountId;
 	type Lookup = AccountIdLookup<AccountId, ()>;
 	type Block = Block;
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeTask = RuntimeTask;
 	type BlockHashCount = BlockHashCount;
+	type DbWeight = RocksDbWeight;
 	type Version = Version;
+	type PalletInfo = PalletInfo;
 	type AccountData = pallet_balances::AccountData<Balance>;
+	type OnNewAccount = ();
+	type OnKilledAccount = ();
 	type SystemWeightInfo = weights::frame_system::WeightInfo<Runtime>;
 	type SS58Prefix = SS58Prefix;
+	type OnSetCode = ();
 	type MaxConsumers = frame_support::traits::ConstU32<16>;
+	type SingleBlockMigrations = ();
 	type MultiBlockMigrator = ();
+	type PreInherents = ();
+	type PostInherents = ();
+	type PostTransactions = ();
 }
 
 parameter_types! {
@@ -198,11 +196,6 @@ impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 		match (left, right) {
 			// Root is greater than anything.
 			(OriginCaller::system(frame_system::RawOrigin::Root), _) => Some(Ordering::Greater),
-			// Check which one has more yes votes.
-			(
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(l_yes_votes, l_count)),
-				OriginCaller::Council(pallet_collective::RawOrigin::Members(r_yes_votes, r_count)),
-			) => Some((l_yes_votes * r_count).cmp(&(r_yes_votes * l_count))),
 			// For every other origin we don't care, as they are not used for `ScheduleOrigin`.
 			_ => None,
 		}
@@ -215,7 +208,7 @@ impl pallet_scheduler::Config for Runtime {
 	type PalletsOrigin = OriginCaller;
 	type RuntimeCall = RuntimeCall;
 	type MaximumWeight = MaximumSchedulerWeight;
-	type ScheduleOrigin = EnsureRootOrCommitteeApproval;
+	type ScheduleOrigin = EnsureRoot<AccountId>;
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type Preimages = Preimage;
@@ -337,14 +330,13 @@ impl pallet_timestamp::Config for Runtime {
 
 impl pallet_authorship::Config for Runtime {
 	type FindAuthor = pallet_session::FindAccountFromAuthorIndex<Self, Babe>;
-	type EventHandler = ImOnline;
+	type EventHandler = ();
 }
 
 impl_opaque_keys! {
 	pub struct SessionKeys {
 		pub grandpa: Grandpa,
 		pub babe: Babe,
-		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
 	}
 }
@@ -392,75 +384,14 @@ impl pallet_identity::Config for Runtime {
 	type MaxSubAccounts = MaxSubAccounts;
 	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
 	type MaxRegistrars = MaxRegistrars;
-	type RegistrarOrigin = MoreThanHalfCouncil;
+	type RegistrarOrigin = EnsureRoot<AccountId>;
 	type OffchainSignature = Signature;
 	type SigningPublicKey = <Signature as Verify>::Signer;
-	type UsernameAuthorityOrigin = MoreThanHalfCouncil;
+	type UsernameAuthorityOrigin = EnsureRoot<AccountId>;
 	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
 	type MaxSuffixLength = ConstU32<7>;
 	type MaxUsernameLength = ConstU32<32>;
 	type WeightInfo = weights::pallet_identity::WeightInfo<Runtime>;
-}
-
-parameter_types! {
-	pub MotionDuration: BlockNumber = prod_or_fast!(3 * DAYS, 2 * MINUTES, "CORD_MOTION_DURATION");
-	pub const MaxProposals: u32 = 100;
-	pub const MaxMembers: u32 = 50;
-	pub MaxProposalWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
-}
-
-type CouncilCollective = pallet_collective::Instance1;
-impl pallet_collective::Config<CouncilCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = MotionDuration;
-	type MaxProposals = MaxProposals;
-	type MaxMembers = MaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
-	type MaxProposalWeight = MaxProposalWeight;
-}
-
-impl pallet_membership::Config<pallet_membership::Instance1> for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = MoreThanHalfCouncil;
-	type RemoveOrigin = MoreThanHalfCouncil;
-	type SwapOrigin = MoreThanHalfCouncil;
-	type ResetOrigin = MoreThanHalfCouncil;
-	type PrimeOrigin = MoreThanHalfCouncil;
-	type MembershipInitialized = Council;
-	type MembershipChanged = Council;
-	type MaxMembers = MaxMembers;
-	type WeightInfo = weights::pallet_membership::WeightInfo<Runtime>;
-}
-
-type TechnicalCollective = pallet_collective::Instance2;
-impl pallet_collective::Config<TechnicalCollective> for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
-	type Proposal = RuntimeCall;
-	type RuntimeEvent = RuntimeEvent;
-	type MotionDuration = MotionDuration;
-	type MaxProposals = MaxProposals;
-	type MaxMembers = MaxMembers;
-	type DefaultVote = pallet_collective::PrimeDefaultVote;
-	type WeightInfo = weights::pallet_collective::WeightInfo<Runtime>;
-	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
-	type MaxProposalWeight = MaxProposalWeight;
-}
-
-impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = MoreThanHalfCouncil;
-	type RemoveOrigin = MoreThanHalfCouncil;
-	type SwapOrigin = MoreThanHalfCouncil;
-	type ResetOrigin = MoreThanHalfCouncil;
-	type PrimeOrigin = MoreThanHalfCouncil;
-	type MembershipInitialized = TechnicalCommittee;
-	type MembershipChanged = TechnicalCommittee;
-	type MaxMembers = MaxMembers;
-	type WeightInfo = weights::pallet_membership::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -483,7 +414,7 @@ parameter_types! {
 impl pallet_treasury::Config for Runtime {
 	type PalletId = TreasuryPalletId;
 	type Currency = Balances;
-	type RejectOrigin = MoreThanHalfCouncil;
+	type RejectOrigin = EnsureRoot<AccountId>;
 	type RuntimeEvent = RuntimeEvent;
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
@@ -502,33 +433,8 @@ impl pallet_treasury::Config for Runtime {
 	type BenchmarkHelper = TreasuryBenchmarkHelper<Runtime>;
 }
 
-impl pallet_cord_offences::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
-	type OnOffenceHandler = AuthorityMembership;
-}
-
 impl pallet_authority_discovery::Config for Runtime {
 	type MaxAuthorities = MaxAuthorities;
-}
-
-parameter_types! {
-	pub const ImOnlineUnsignedPriority: TransactionPriority = TransactionPriority::max_value();
-	pub const MaxPeerInHeartbeats: u32 = 10_000;
-	pub const MaxPeerDataEncodingSize: u32 = 1_000;
-	pub const MaxKeys: u32 = 100_000;
-}
-
-impl pallet_im_online::Config for Runtime {
-	type AuthorityId = ImOnlineId;
-	type RuntimeEvent = RuntimeEvent;
-	type ValidatorSet = Historical;
-	type NextSessionRotation = Babe;
-	type ReportUnresponsiveness = Offences;
-	type UnsignedPriority = ImOnlineUnsignedPriority;
-	type WeightInfo = weights::pallet_im_online::WeightInfo<Runtime>;
-	type MaxKeys = MaxKeys;
-	type MaxPeerInHeartbeats = MaxPeerInHeartbeats;
 }
 
 parameter_types! {
@@ -641,7 +547,7 @@ impl authority_membership::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MinAuthorities = ConstU32<3>;
 	type MaxAuthorities = ConstU32<500>;
-	type AuthorityMembershipOrigin = MoreThanHalfCouncil;
+	type AuthorityMembershipOrigin = EnsureRoot<AccountId>;
 }
 
 parameter_types! {
@@ -655,142 +561,12 @@ impl pallet_node_authorization::Config for Runtime {
 	type MaxWellKnownNodes = MaxWellKnownNodes;
 	type MaxPeerIdLength = MaxPeerIdLength;
 	type MaxNodeIdLength = MaxNodeIdLength;
-	type NodeAuthorizationOrigin = MoreThanHalfCouncil;
+	type NodeAuthorizationOrigin = EnsureRoot<AccountId>;
 	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const MaxEventsHistory: u32 = u32::MAX;
-}
-
-impl identifier::Config for Runtime {
-	type MaxEventsHistory = MaxEventsHistory;
 }
 
 impl pallet_runtime_upgrade::Config for Runtime {
-	type SetCodeOrigin = EnsureRootOrCommitteeApproval;
-}
-
-parameter_types! {
-	#[derive(Debug, Clone, Eq, PartialEq, TypeInfo, Decode, Encode)]
-	pub const MaxNewKeyAgreementKeys: u32 = 10;
-	#[derive(Clone)]
-	pub const MaxPublicKeysPerDid: u32 = 20;
-	#[derive(Debug, Clone, Eq, PartialEq)]
-	pub const MaxTotalKeyAgreementKeys: u32 = 19;
-	pub const MaxBlocksTxValidity: BlockNumber =  2 * HOURS;
-	pub const MaxNumberOfServicesPerDid: u32 = 25;
-	pub const MaxServiceIdLength: u32 = 50;
-	pub const MaxServiceTypeLength: u32 = 50;
-	pub const MaxServiceUrlLength: u32 = 200;
-	pub const MaxNumberOfTypesPerService: u32 = 1;
-	pub const MaxNumberOfUrlsPerService: u32 = 1;
-}
-
-impl pallet_did::Config for Runtime {
-	type DidIdentifier = DidIdentifier;
-	type RuntimeEvent = RuntimeEvent;
-	// type RuntimeCall = RuntimeCall;
-	type RuntimeOrigin = RuntimeOrigin;
-
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<Self::DidIdentifier, AccountId>;
-	#[cfg(not(feature = "runtime-benchmarks"))]
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, Self::DidIdentifier>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type EnsureOrigin = EnsureSigned<Self::DidIdentifier>;
-	#[cfg(feature = "runtime-benchmarks")]
-	type OriginSuccess = Self::DidIdentifier;
-
-	type MaxNewKeyAgreementKeys = MaxNewKeyAgreementKeys;
-	type MaxPublicKeysPerDid = MaxPublicKeysPerDid;
-	type MaxTotalKeyAgreementKeys = MaxTotalKeyAgreementKeys;
-	type MaxBlocksTxValidity = MaxBlocksTxValidity;
-	type MaxNumberOfServicesPerDid = MaxNumberOfServicesPerDid;
-	type MaxServiceIdLength = MaxServiceIdLength;
-	type MaxServiceTypeLength = MaxServiceTypeLength;
-	type MaxServiceUrlLength = MaxServiceUrlLength;
-	type MaxNumberOfTypesPerService = MaxNumberOfTypesPerService;
-	type MaxNumberOfUrlsPerService = MaxNumberOfUrlsPerService;
-	type WeightInfo = weights::pallet_did::WeightInfo<Runtime>;
-}
-
-parameter_types! {
-	pub const MinNameLength: u32 = 3;
-	pub const MaxNameLength: u32 = 64;
-	pub const MaxPrefixLength: u32 = 54;
-}
-
-impl pallet_did_name::Config for Runtime {
-	type BanOrigin = EnsureRoot<AccountId>;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type MaxNameLength = MaxNameLength;
-	type MinNameLength = MinNameLength;
-	type MaxPrefixLength = MaxPrefixLength;
-	type DidName = pallet_did_name::did_name::AsciiDidName<Runtime>;
-	type DidNameOwner = DidIdentifier;
-	type WeightInfo = weights::pallet_did_name::WeightInfo<Runtime>;
-}
-
-parameter_types! {
-	pub const MaxEncodedSchemaLength: u32 = 15_360;
-}
-
-impl pallet_schema::Config for Runtime {
-	type SchemaCreatorId = DidIdentifier;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
-	type WeightInfo = weights::pallet_schema::WeightInfo<Runtime>;
-}
-
-impl pallet_schema_accounts::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MaxEncodedSchemaLength = MaxEncodedSchemaLength;
-	type WeightInfo = ();
-}
-
-parameter_types! {
-	pub const MaxSpaceDelegates: u32 = 10_000;
-}
-
-impl pallet_chain_space::Config for Runtime {
-	type SpaceCreatorId = DidIdentifier;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type ChainSpaceOrigin = MoreThanHalfCouncil;
-	type NetworkPermission = NetworkParameters;
-	type MaxSpaceDelegates = MaxSpaceDelegates;
-	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
-}
-
-impl pallet_collection::Config for Runtime {
-	type SpaceCreatorId = DidIdentifier;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type ChainSpaceOrigin = MoreThanHalfCouncil;
-	type NetworkPermission = NetworkParameters;
-	type MaxSpaceDelegates = MaxSpaceDelegates;
-	type WeightInfo = weights::pallet_collection::WeightInfo<Runtime>;
-}
-
-parameter_types! {
-	pub const MaxRegistryBlobSize: u32 = 4 * 1024;
-	pub const MaxEncodedInputLength: u32 = 30;
-	pub const MaxRegistryDelegates: u32 = 10_000;
-}
-
-impl pallet_registries::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MaxRegistryDelegates = MaxRegistryDelegates;
-	type MaxRegistryBlobSize = MaxRegistryBlobSize;
-	type MaxEncodedInputLength = MaxEncodedInputLength;
-	type WeightInfo = ();
+	type SetCodeOrigin = EnsureRoot<AccountId>;
 }
 
 impl pallet_remark::Config for Runtime {
@@ -798,45 +574,16 @@ impl pallet_remark::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 }
 
+impl pallet_offences::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
+	type OnOffenceHandler = ();
+}
+
 impl pallet_sudo::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type RuntimeCall = RuntimeCall;
 	type WeightInfo = weights::pallet_sudo::WeightInfo<Runtime>;
-}
-
-impl pallet_network_score::Config for Runtime {
-	type RatingProviderIdOf = DidIdentifier;
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type MaxEncodedValueLength = ConstU32<128>;
-	type MaxRatingValue = ConstU32<50>;
-	type WeightInfo = weights::pallet_network_score::WeightInfo<Runtime>;
-}
-
-parameter_types! {
-	pub const MaxDigestsPerBatch: u16 = 1_000;
-	pub const MaxRemoveEntries: u16 = 1_000;
-}
-
-impl pallet_elements::Config for Runtime {
-	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
-	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_elements::WeightInfo<Runtime>;
-	type MaxDigestsPerBatch = MaxDigestsPerBatch;
-	type MaxRemoveEntries = MaxRemoveEntries;
-}
-
-parameter_types! {
-	pub const MaxRegistryEntryBlobSize: u32 = 4 * 1024; // 4KB in bytes
-}
-
-impl pallet_entries::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type MaxEncodedInputLength = MaxEncodedInputLength;
-	type MaxRegistryEntryBlobSize = MaxRegistryEntryBlobSize;
-	type WeightInfo = ();
 }
 
 impl pallet_config::Config for Runtime {}
@@ -905,150 +652,44 @@ impl pallet_contracts::Config for Runtime {
 	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
 }
 
-#[frame_support::runtime]
-mod runtime {
-	#[runtime::runtime]
-	#[runtime::derive(
-		RuntimeCall,
-		RuntimeEvent,
-		RuntimeError,
-		RuntimeOrigin,
-		RuntimeFreezeReason,
-		RuntimeHoldReason,
-		RuntimeSlashReason,
-		RuntimeLockId,
-		RuntimeTask
-	)]
-	pub struct Runtime;
+construct_runtime! {
+	pub enum Runtime
+	{
+		System: frame_system = 0,
+		Scheduler: pallet_scheduler = 1,
+		Babe: pallet_babe = 2,
+		Timestamp: pallet_timestamp = 3,
+		Indices: pallet_indices = 4,
+		Balances: pallet_balances = 5,
 
-	#[runtime::pallet_index(0)]
-	pub type System = frame_system;
+		AuthorityMembership: authority_membership = 8,
+		Offences: pallet_offences = 9,
+		Authorship: pallet_authorship = 10,
 
-	#[runtime::pallet_index(1)]
-	pub type Utility = pallet_utility;
+		Session: pallet_session = 12,
+		Grandpa: pallet_grandpa = 13,
+		AuthorityDiscovery: pallet_authority_discovery = 14,
+		Preimage: pallet_preimage = 15,
+		RandomnessCollectiveFlip: pallet_insecure_randomness_collective_flip = 16,
 
-	#[runtime::pallet_index(2)]
-	pub type Babe = pallet_babe;
+		Utility: pallet_utility = 20,
+		TransactionPayment: pallet_transaction_payment = 21,
+		Historical: pallet_session_historical = 22,
+		Identity: pallet_identity = 23,
+		Multisig: pallet_multisig = 24,
+		Contracts: pallet_contracts = 25,
 
-	#[runtime::pallet_index(3)]
-	pub type Timestamp = pallet_timestamp;
+		Remark: pallet_remark = 45,
 
-	#[runtime::pallet_index(4)]
-	pub type AuthorityMembership = authority_membership;
+		Treasury: pallet_treasury = 64,
 
-	#[runtime::pallet_index(5)]
-	pub type Authorship = pallet_authorship;
+		NodeAuthorization: pallet_node_authorization = 75,
+		RuntimeUpgrade: pallet_runtime_upgrade = 76,
+		NetworkParameters: pallet_config = 77,
 
-	#[runtime::pallet_index(6)]
-	pub type Indices = pallet_indices;
-
-	#[runtime::pallet_index(7)]
-	pub type Balances = pallet_balances;
-
-	#[runtime::pallet_index(8)]
-	pub type Session = pallet_session;
-
-	#[runtime::pallet_index(9)]
-	pub type TransactionPayment = pallet_transaction_payment;
-
-	#[runtime::pallet_index(10)]
-	pub type Treasury = pallet_treasury;
-
-	#[runtime::pallet_index(12)]
-	pub type RandomnessCollectiveFlip = pallet_insecure_randomness_collective_flip;
-
-	#[runtime::pallet_index(20)]
-	pub type Council = pallet_collective<Instance1>;
-
-	#[runtime::pallet_index(21)]
-	pub type CouncilMembership = pallet_membership<Instance1>;
-
-	#[runtime::pallet_index(22)]
-	pub type TechnicalCommittee = pallet_collective<Instance2>;
-
-	#[runtime::pallet_index(23)]
-	pub type TechnicalMembership = pallet_membership<Instance2>;
-
-	#[runtime::pallet_index(25)]
-	pub type Grandpa = pallet_grandpa;
-
-	#[runtime::pallet_index(26)]
-	pub type ImOnline = pallet_im_online;
-
-	#[runtime::pallet_index(27)]
-	pub type AuthorityDiscovery = pallet_authority_discovery;
-
-	#[runtime::pallet_index(28)]
-	pub type Offences = pallet_cord_offences;
-
-	#[runtime::pallet_index(29)]
-	pub type Historical = pallet_session_historical;
-
-	#[runtime::pallet_index(30)]
-	pub type Identity = pallet_identity;
-
-	#[runtime::pallet_index(31)]
-	pub type Scheduler = pallet_scheduler;
-
-	#[runtime::pallet_index(32)]
-	pub type Preimage = pallet_preimage;
-
-	#[runtime::pallet_index(33)]
-	pub type Multisig = pallet_multisig;
-
-	#[runtime::pallet_index(34)]
-	pub type NodeAuthorization = pallet_node_authorization;
-
-	#[runtime::pallet_index(35)]
-	pub type RuntimeUpgrade = pallet_runtime_upgrade;
-
-	#[runtime::pallet_index(36)]
-	pub type Collection = pallet_collection;
-
-	#[runtime::pallet_index(37)]
-	pub type Elements = pallet_elements;
-
-	#[runtime::pallet_index(38)]
-	pub type Contracts = pallet_contracts;
-
-	#[runtime::pallet_index(50)]
-	pub type Identifier = identifier;
-
-	#[runtime::pallet_index(52)]
-	pub type Did = pallet_did;
-
-	#[runtime::pallet_index(53)]
-	pub type Schema = pallet_schema;
-
-	#[runtime::pallet_index(54)]
-	pub type ChainSpace = pallet_chain_space;
-
-	#[runtime::pallet_index(56)]
-	pub type DidName = pallet_did_name;
-
-	#[runtime::pallet_index(57)]
-	pub type NetworkScore = pallet_network_score;
-
-	#[runtime::pallet_index(59)]
-	pub type Remark = pallet_remark;
-
-	#[runtime::pallet_index(60)]
-	pub type NetworkParameters = pallet_config;
-
-	#[runtime::pallet_index(61)]
-	pub type Registries = pallet_registries;
-
-	#[runtime::pallet_index(62)]
-	pub type Entries = pallet_entries;
-
-	#[runtime::pallet_index(63)]
-	pub type SchemaAccounts = pallet_schema_accounts;
-
-	#[runtime::pallet_index(254)]
-	pub type RootTesting = pallet_root_testing;
-
-	#[runtime::pallet_index(255)]
-	pub type Sudo = pallet_sudo;
+		RootTesting: pallet_root_testing = 249,
+		Sudo: pallet_sudo = 250,
+	}
 }
 
 /// The address format for describing accounts.
@@ -1101,11 +742,9 @@ mod benches {
 		[frame_benchmarking, BaselineBench::<Runtime>]
 		[pallet_babe, Babe]
 		[pallet_balances, Balances]
-		[pallet_collective, Council]
 		[pallet_contracts, Contracts]
 		[pallet_grandpa, Grandpa]
 		[pallet_identity, Identity]
-		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
 		[pallet_membership, TechnicalMembership]
 		[pallet_multisig, Multisig]
@@ -1114,13 +753,7 @@ mod benches {
 		[pallet_scheduler, Scheduler]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_timestamp, Timestamp]
-		// [pallet_treasury, Treasury]
 		[pallet_utility, Utility]
-		[pallet_schema, Schema]
-		[pallet_chain_space, ChainSpace]
-		[pallet_did, Did]
-		[pallet_did_name, DidName]
-		[pallet_network_score, NetworkScore]
 		[pallet_sudo, Sudo]
 	);
 }
@@ -1391,59 +1024,6 @@ sp_api::impl_runtime_apis! {
 		}
 		fn query_length_to_fee(length: u32) -> Balance {
 			TransactionPayment::length_to_fee(length)
-		}
-	}
-
-	impl pallet_did_runtime_api::DidApi<
-		Block,
-		DidIdentifier,
-		AccountId,
-		Hash,
-		BlockNumber
-	> for Runtime {
-		fn query(did: DidIdentifier) -> Option<
-			pallet_did_runtime_api::RawDidLinkedInfo<
-				DidIdentifier,
-				AccountId,
-				Hash,
-				BlockNumber
-			>
-		> {
-			let details = pallet_did::Did::<Runtime>::get(&did)?;
-			let name = pallet_did_name::Names::<Runtime>::get(&did).map(Into::into);
-			let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&did).map(|e| From::from(e.1)).collect();
-
-			Some(pallet_did_runtime_api::RawDidLinkedInfo {
-				identifier: did.clone(),
-				account: did,
-				name,
-				service_endpoints,
-				details: details.into(),
-			})
-		}
-		fn query_by_name(name: Vec<u8>) -> Option<pallet_did_runtime_api::RawDidLinkedInfo<
-				DidIdentifier,
-				AccountId,
-				Hash,
-				BlockNumber
-			>
-		> {
-			let dname: pallet_did_name::did_name::AsciiDidName<Runtime> = name.try_into().ok()?;
-			pallet_did_name::Owner::<Runtime>::get(&dname)
-				.and_then(|owner_info| {
-					pallet_did::Did::<Runtime>::get(&owner_info.owner).map(|details| (owner_info, details))
-				})
-				.map(|(owner_info, details)| {
-					let service_endpoints = pallet_did::ServiceEndpoints::<Runtime>::iter_prefix(&owner_info.owner).map(|e| From::from(e.1)).collect();
-
-					pallet_did_runtime_api::RawDidLinkedInfo{
-						identifier: owner_info.owner.clone(),
-						account: owner_info.owner,
-						name: Some(dname.into()),
-						service_endpoints,
-						details: details.into(),
-					}
-			})
 		}
 	}
 

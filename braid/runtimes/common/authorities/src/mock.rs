@@ -121,6 +121,7 @@ impl cord_authority_membership::Config for Test {
 	type AuthorityMembershipOrigin = EnsureRoot<u64>;
 	type RuntimeEvent = RuntimeEvent;
 	type MinAuthorities = ConstU32<1>;
+	type MaxAuthorities = ConstU32<5>;
 }
 
 parameter_types! {

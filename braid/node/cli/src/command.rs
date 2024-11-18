@@ -85,29 +85,37 @@ impl SubstrateCli for Cli {
 				.unwrap_or("flow")
 		} else {
 			match id {
-				"dev-braid-pulse" | "dev-braid-flow" => "dev",
+				"dev-braid-base" | "dev-braid-plus" | "dev-braid-twist" => "dev",
 				_ => id,
 			}
 		};
 		Ok(match id {
-			#[cfg(feature = "braid-pulse-native")]
-			"pulse" | "braid-pulse-local" => Box::new(chain_spec::braid_pulse_local_config()?),
-			#[cfg(feature = "braid-flow-native")]
-			"flow" | "braid-flow-local" => Box::new(chain_spec::braid_flow_local_config()?),
+			#[cfg(feature = "braid-base-native")]
+			"base" | "braid-base-local" => Box::new(chain_spec::braid_base_local_config()?),
+			#[cfg(feature = "braid-plus-native")]
+			"plus" | "braid-plus-local" => Box::new(chain_spec::braid_plus_local_config()?),
+			#[cfg(feature = "braid-twist-native")]
+			"twist" | "braid-twist-local" => Box::new(chain_spec::braid_twist_local_config()?),
 			"dev" => match incoming_id {
-				"dev-braid-pulse" => Box::new(chain_spec::braid_pulse_development_config()?),
-				"dev-braid-flow" => Box::new(chain_spec::braid_flow_development_config()?),
-				_ => Box::new(chain_spec::braid_flow_development_config()?),
+				"dev-braid-base" => Box::new(chain_spec::braid_base_development_config()?),
+				"dev-braid-plus" => Box::new(chain_spec::braid_plus_development_config()?),
+				"dev-braid-twist" => Box::new(chain_spec::braid_twist_development_config()?),
+				_ => Box::new(chain_spec::braid_plus_development_config()?),
 			},
-			#[cfg(not(feature = "braid-pulse-native"))]
-			name if name.starts_with("pulse-") && !name.ends_with(".json") => Err(format!(
-				"`{}` only supported with `braid-pulse-native` feature enabled.",
+			#[cfg(not(feature = "braid-base-native"))]
+			name if name.starts_with("base-") && !name.ends_with(".json") => {
+				Err(format!("`{}` only supported with `braid-base-native` feature enabled.", name))?
+			},
+			#[cfg(not(feature = "braid-plus-native"))]
+			name if name.starts_with("plus-") && !name.ends_with(".json") => {
+				Err(format!("`{}` only supported with `braid-plus-native` feature enabled.", name))?
+			},
+			#[cfg(not(feature = "braid-twist-native"))]
+			name if name.starts_with("twist-") && !name.ends_with(".json") => Err(format!(
+				"`{}` only supported with `braid-twist-native` feature enabled.",
 				name
 			))?,
-			#[cfg(not(feature = "braid-flow-native"))]
-			name if name.starts_with("flow-") && !name.ends_with(".json") => {
-				Err(format!("`{}` only supported with `braid-flow-native` feature enabled.", name))?
-			},
+
 			// "weave" => Box::new(chain_spec::weave_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
@@ -118,10 +126,12 @@ impl SubstrateCli for Cli {
 
 				// When the file name starts with the name of one of the known
 				// chains, we use the chain spec for the specific chain.
-				if chain_spec.is_pulse() {
-					Box::new(cord_braid_service::BraidPulseChainSpec::from_json_file(path)?)
-				} else if chain_spec.is_flow() {
-					Box::new(cord_braid_service::BraidFlowChainSpec::from_json_file(path)?)
+				if chain_spec.is_base() {
+					Box::new(cord_braid_service::BraidBaseChainSpec::from_json_file(path)?)
+				} else if chain_spec.is_plus() {
+					Box::new(cord_braid_service::BraidPlusChainSpec::from_json_file(path)?)
+				} else if chain_spec.is_twist() {
+					Box::new(cord_braid_service::BraidTwistChainSpec::from_json_file(path)?)
 				} else {
 					chain_spec
 				}
@@ -131,10 +141,12 @@ impl SubstrateCli for Cli {
 }
 
 fn set_default_ss58_version(spec: &Box<dyn cord_braid_service::ChainSpec>) {
-	let ss58_version = if spec.is_pulse() {
-		Ss58AddressFormatPrefix::Pulse.into()
-	} else if spec.is_flow() {
-		Ss58AddressFormatPrefix::Flow.into()
+	let ss58_version = if spec.is_base() {
+		Ss58AddressFormatPrefix::Base.into()
+	} else if spec.is_plus() {
+		Ss58AddressFormatPrefix::Plus.into()
+	} else if spec.is_twist() {
+		Ss58AddressFormatPrefix::Twist.into()
 	} else {
 		spec.properties()
 			.get("ss58Format")
@@ -159,9 +171,9 @@ pub fn run() -> Result<()> {
 				cord_braid_service::new_full(config, cli).map_err(sc_cli::Error::Service)
 			})
 		},
-		Some(Subcommand::Pulse { dev: _ }) => {
+		Some(Subcommand::Base { dev: _ }) => {
 			cli.run.shared_params.dev = true;
-			cli.run.shared_params.chain = Some("dev-braid-pulse".into());
+			cli.run.shared_params.chain = Some("dev-braid-base".into());
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
 				let chain_spec = config.chain_spec.cloned_box();
@@ -169,9 +181,19 @@ pub fn run() -> Result<()> {
 				cord_braid_service::new_full(config, cli).map_err(sc_cli::Error::Service)
 			})
 		},
-		Some(Subcommand::Flow { dev: _ }) => {
+		Some(Subcommand::Plus { dev: _ }) => {
 			cli.run.shared_params.dev = true;
-			cli.run.shared_params.chain = Some("dev-braid-flow".into());
+			cli.run.shared_params.chain = Some("dev-braid-plus".into());
+			let runner = cli.create_runner(&cli.run)?;
+			runner.run_node_until_exit(|config| async move {
+				let chain_spec = config.chain_spec.cloned_box();
+				set_default_ss58_version(&chain_spec);
+				cord_braid_service::new_full(config, cli).map_err(sc_cli::Error::Service)
+			})
+		},
+		Some(Subcommand::Twist { dev: _ }) => {
+			cli.run.shared_params.dev = true;
+			cli.run.shared_params.chain = Some("dev-braid-twist".into());
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
 				let chain_spec = config.chain_spec.cloned_box();

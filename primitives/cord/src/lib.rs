@@ -42,9 +42,17 @@ pub type BlockNumber = u32;
 /// the chain.
 pub type Signature = MultiSignature;
 
-/// Some way of identifying an account on the chain. We intentionally make it
-/// equivalent to the public key of our transaction signing scheme.
-pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
+/// Alias to the public key used for this chain, actually a `MultiSigner`. Like the signature, this
+/// also isn't a fixed size when encoded, as different cryptos have different size public keys.
+pub type AccountPublic = <Signature as Verify>::Signer;
+
+/// Alias to the opaque account ID type for this chain, actually a `AccountId32`. This is always
+/// 32 bytes.
+pub type AccountId = <AccountPublic as IdentifyAccount>::AccountId;
+
+// /// Some way of identifying an account on the chain. We intentionally make it
+// /// equivalent to the public key of our transaction signing scheme.
+// pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 
 /// The type for looking up accounts. We don't expect more than 4 billion of
 /// them.
@@ -114,9 +122,11 @@ pub trait IsPermissioned {
 #[derive(Debug, Clone, Copy)]
 pub enum Ss58AddressFormatPrefix {
 	/// Default for Braid Base
-	Pulse = 3893,
+	Base = 3893,
 	/// Default for Braid Plus
-	Flow = 4926,
+	Plus = 4926,
+	/// Default for Braid Twist
+	Twist = 5126,
 	/// Default for Loom
 	Loom = 29,
 	/// Default for Weave

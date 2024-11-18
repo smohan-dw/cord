@@ -1,6 +1,6 @@
 [package]
-name = "cord-braid-flow-runtime-constants"
-description = "Braid Plus runtime constants."
+name = "cord-braid-twist-runtime-constants"
+description = "Braid Twist runtime constants."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true

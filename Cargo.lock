@@ -1562,11 +1562,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6245d59a3e82a7fc217c5828a6692dbc6dfb63a0c8c90495621f7b9d79704a0e"
 
 [[package]]
-name = "cord-braid-flow-runtime"
+name = "cord-braid-base-runtime"
 version = "0.9.5"
 dependencies = [
  "authority-membership",
- "cord-braid-flow-runtime-constants",
+ "cord-braid-base-runtime-constants",
  "cord-braid-runtime-common",
  "cord-identifier",
  "cord-primitives",
@@ -1584,30 +1584,23 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-chain-space",
- "pallet-collection",
- "pallet-collective",
  "pallet-config",
  "pallet-contracts",
- "pallet-cord-offences",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
  "pallet-did-token",
- "pallet-elements",
  "pallet-entries",
  "pallet-grandpa",
  "pallet-identity 0.9.5",
- "pallet-im-online",
  "pallet-indices",
  "pallet-insecure-randomness-collective-flip",
- "pallet-membership",
  "pallet-multisig",
  "pallet-network-score",
  "pallet-node-authorization",
- "pallet-preimage",
+ "pallet-offences",
  "pallet-registries",
  "pallet-remark",
- "pallet-root-testing",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
  "pallet-schema",
@@ -1618,7 +1611,6 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
- "pallet-treasury",
  "pallet-utility",
  "parity-scale-codec",
  "primitive-types",
@@ -1647,7 +1639,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-braid-flow-runtime-constants"
+name = "cord-braid-base-runtime-constants"
 version = "0.9.5"
 dependencies = [
  "cord-braid-runtime-common",
@@ -1669,13 +1661,15 @@ dependencies = [
  "bitvec",
  "clap 4.5.21",
  "clap_complete",
- "cord-braid-flow-runtime",
- "cord-braid-flow-runtime-constants",
+ "cord-braid-base-runtime",
+ "cord-braid-base-runtime-constants",
  "cord-braid-node-inspect",
  "cord-braid-node-rpc",
- "cord-braid-pulse-runtime",
- "cord-braid-pulse-runtime-constants",
+ "cord-braid-plus-runtime",
+ "cord-braid-plus-runtime-constants",
  "cord-braid-runtime-common",
+ "cord-braid-twist-runtime",
+ "cord-braid-twist-runtime-constants",
  "cord-primitives",
  "env_logger 0.11.5",
  "frame-benchmarking",
@@ -1823,11 +1817,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-braid-pulse-runtime"
+name = "cord-braid-plus-runtime"
 version = "0.9.5"
 dependencies = [
  "authority-membership",
- "cord-braid-pulse-runtime-constants",
+ "cord-braid-plus-runtime-constants",
  "cord-braid-runtime-common",
  "cord-identifier",
  "cord-primitives",
@@ -1845,24 +1839,29 @@ dependencies = [
  "pallet-babe",
  "pallet-balances",
  "pallet-chain-space",
+ "pallet-collection",
+ "pallet-collective",
  "pallet-config",
  "pallet-contracts",
- "pallet-cord-offences",
  "pallet-did",
  "pallet-did-name",
  "pallet-did-runtime-api",
  "pallet-did-token",
+ "pallet-elements",
  "pallet-entries",
  "pallet-grandpa",
  "pallet-identity 0.9.5",
- "pallet-im-online",
  "pallet-indices",
  "pallet-insecure-randomness-collective-flip",
+ "pallet-membership",
  "pallet-multisig",
  "pallet-network-score",
  "pallet-node-authorization",
+ "pallet-offences",
+ "pallet-preimage",
  "pallet-registries",
  "pallet-remark",
+ "pallet-root-testing",
  "pallet-runtime-upgrade",
  "pallet-scheduler",
  "pallet-schema",
@@ -1873,6 +1872,7 @@ dependencies = [
  "pallet-timestamp",
  "pallet-transaction-payment",
  "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
  "pallet-utility",
  "parity-scale-codec",
  "primitive-types",
@@ -1901,7 +1901,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cord-braid-pulse-runtime-constants"
+name = "cord-braid-plus-runtime-constants"
 version = "0.9.5"
 dependencies = [
  "cord-braid-runtime-common",
@@ -1941,6 +1941,89 @@ dependencies = [
  "sp-staking",
  "sp-std",
  "static_assertions",
+]
+
+[[package]]
+name = "cord-braid-twist-runtime"
+version = "0.9.5"
+dependencies = [
+ "authority-membership",
+ "cord-braid-runtime-common",
+ "cord-braid-twist-runtime-constants",
+ "cord-primitives",
+ "frame-benchmarking",
+ "frame-executive",
+ "frame-support",
+ "frame-system",
+ "frame-system-benchmarking",
+ "frame-system-rpc-runtime-api",
+ "frame-try-runtime",
+ "hex-literal",
+ "log",
+ "pallet-authority-discovery",
+ "pallet-authorship",
+ "pallet-babe",
+ "pallet-balances",
+ "pallet-config",
+ "pallet-contracts",
+ "pallet-grandpa",
+ "pallet-identity 0.9.5",
+ "pallet-indices",
+ "pallet-insecure-randomness-collective-flip",
+ "pallet-multisig",
+ "pallet-network-score",
+ "pallet-node-authorization",
+ "pallet-offences",
+ "pallet-preimage",
+ "pallet-remark",
+ "pallet-root-testing",
+ "pallet-runtime-upgrade",
+ "pallet-scheduler",
+ "pallet-session",
+ "pallet-session-benchmarking 38.0.0",
+ "pallet-sudo",
+ "pallet-timestamp",
+ "pallet-transaction-payment",
+ "pallet-transaction-payment-rpc-runtime-api",
+ "pallet-treasury",
+ "pallet-utility",
+ "parity-scale-codec",
+ "primitive-types",
+ "scale-info",
+ "serde",
+ "serde_json",
+ "sp-api",
+ "sp-authority-discovery",
+ "sp-block-builder",
+ "sp-consensus-babe",
+ "sp-consensus-grandpa",
+ "sp-core",
+ "sp-genesis-builder",
+ "sp-inherents",
+ "sp-io",
+ "sp-offchain",
+ "sp-runtime",
+ "sp-session",
+ "sp-staking",
+ "sp-std",
+ "sp-storage",
+ "sp-transaction-pool",
+ "sp-version",
+ "static_assertions",
+ "substrate-wasm-builder",
+]
+
+[[package]]
+name = "cord-braid-twist-runtime-constants"
+version = "0.9.5"
+dependencies = [
+ "cord-braid-runtime-common",
+ "cord-primitives",
+ "frame-support",
+ "smallvec",
+ "sp-core",
+ "sp-runtime",
+ "sp-weights",
 ]
 
 [[package]]
