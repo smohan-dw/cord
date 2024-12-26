@@ -118,6 +118,7 @@ pallet-babe = { features = ["std"], workspace = true }
 pallet-im-online = { features = ["std"], workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
+pallet-asset-conversion-tx-payment = { workspace = true }
 pallet-contracts = { features = ["std"], workspace = true }
 pallet-asset-conversion = { features = ["std"], workspace = true }
 prometheus-endpoint = { workspace = true }
@@ -218,6 +219,8 @@ db = [
 	"kvdb-rocksdb",
 ]
 
+jemalloc-allocator = ["dep:tikv-jemallocator"]
+
 # Configure the native runtimes to use.
 braid-native = ["bitvec", "cord-braid-runtime", "cord-braid-runtime-constants"]
 loom-native = ["bitvec", "cord-loom-runtime", "cord-loom-runtime-constants"]
@@ -253,6 +256,7 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-transaction-payment/try-runtime",
+	"pallet-asset-conversion-tx-payment/try-runtime",
 	"sp-runtime/try-runtime",
 	"cord-braid-runtime?/try-runtime",
 	"cord-weave-runtime?/try-runtime",
