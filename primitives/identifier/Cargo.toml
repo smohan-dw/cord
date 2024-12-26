@@ -22,9 +22,15 @@ cord-utilities = { features = ["mock"], workspace = true }
 [dependencies]
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
+impl-serde = { optional = true, workspace = true }
+primitive-types = { features = ["codec", "scale-info"], workspace = true }
+serde = { optional = true, features = ["alloc", "derive"], workspace = true }
+bs58 = { optional = true, workspace = true }
+blake2 = { optional = true, workspace = true }
+sp-crypto-hashing = { workspace = true }
+sp-runtime-interface = { workspace = true }
+sp-storage = { workspace = true }
 
-bs58 = { workspace = true }
-blake2-rfc = { workspace = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -46,15 +52,36 @@ std = [
 	"sp-io/std",
 	"sp-std/std",
 	"sp-keystore/std",
+	"primitive-types/byteorder",
+	"primitive-types/rustc-hex",
+	"primitive-types/serde",
+	"primitive-types/std",
+	"serde/std",
+	"sp-crypto-hashing/std",
+	"sp-runtime/std",
+	"sp-runtime-interface/std",
 	"bs58/std",
-	"blake2-rfc/std",
+	"blake2/std",
 	"cord-utilities/std",
-	"sp-core?/std"
+	"sp-core?/std",
+	"sp-storage/std",
 ]
+
+# Serde support without relying on std features.
+serde = [
+	"blake2",
+	"bs58/alloc",
+	"dep:serde",
+	"impl-serde",
+	"primitive-types/serde_no_std",
+	"scale-info/serde",
+	"sp-storage/serde",
+]
+
 
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"cord-utilities/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]

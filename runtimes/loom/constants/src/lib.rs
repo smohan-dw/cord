@@ -24,18 +24,23 @@ pub mod weights;
 /// Money matters.
 pub mod currency {
 	use cord_primitives::Balance;
-
-	pub const UNITS: Balance = 1_000_000_000_000; // 10^12 precision
-
-	pub const MILLI_UNITS: Balance = UNITS / 1_000; // 10^9 precision
-	pub const MICRO_UNITS: Balance = UNITS / 1_000_000; // 10^6 precision
-	pub const NANO_UNITS: Balance = UNITS / 1_000_000_000; // 10^3 precision
+	pub const UNITS: Balance = 1_000_000_000_000; // Base unit (1 trillion)
+	pub const CENTI: Balance = UNITS / 100; // 1% of a UNIT (10 billion)
+	pub const MILLI: Balance = UNITS / 1_000; // 0.1% of a UNIT (1 billion)
+	pub const MICRO: Balance = UNITS / 1_000_000; // 1 millionth of a UNIT (1 million)
+	pub const NANO: Balance = UNITS / 1_000_000_000; // 1 billionth of a UNIT (1 thousand)
+	pub const GRAND: Balance = UNITS * 1_000; // 1,000 UNITS (1 quadrillion)
 
 	/// The existential deposit.
-	pub const EXISTENTIAL_DEPOSIT: Balance = 100 * MILLI_UNITS;
+	pub const EXISTENTIAL_DEPOSIT: Balance = CENTI;
+
+	// Provide a common factor between runtimes
+	pub const SUPPLY_FACTOR: Balance = 100;
+	pub const STORAGE_BYTE_FEE: Balance = 100 * MICRO * SUPPLY_FACTOR;
+	pub const STORAGE_ITEM_FEE: Balance = 100 * MILLI * SUPPLY_FACTOR;
 
 	pub const fn deposit(items: u32, bytes: u32) -> Balance {
-		items as Balance * 100 * UNITS + (bytes as Balance) * 100 * MILLI_UNITS
+		items as Balance * STORAGE_ITEM_FEE + (bytes as Balance) * STORAGE_BYTE_FEE
 	}
 }
 
@@ -73,36 +78,32 @@ pub mod fee {
 		WeightToFeeCoefficient, WeightToFeeCoefficients, WeightToFeePolynomial,
 	};
 	use smallvec::smallvec;
-	pub use sp_runtime::Perbill;
+	pub use sp_runtime::{FixedPointNumber, FixedU128, Perbill};
 
-	// The block saturation level. Fees will be updates based on this value.
-	// pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
+	/// The block saturation level. Fees will be updates based on this value.
+	pub const TARGET_BLOCK_FULLNESS: Perbill = Perbill::from_percent(25);
 
-	// Cost of every transaction byte.
-	// pub const TRANSACTION_BYTE_FEE: Balance = 10 * super::currency::MILLI_UNITS;
+	/// Cost of every transaction byte.
+	pub const TRANSACTION_BYTE_FEE: Balance = 10 * super::currency::MILLI;
 
-	/// Handles converting a weight scalar to a fee value, based on the scale
-	/// and granularity of the node's balance type.
-	///
-	/// This should typically create a mapping between the following ranges:
-	///   - [0, `frame_system::MaximumBlockWeight`]
-	///   - [Balance::min, Balance::max]
-	///
-	/// Yet, it can be used for any other sort of change to weight-fee. Some
-	/// examples being:
-	///   - Setting it to `0` will essentially disable the weight fee.
-	///   - Setting it to `1` will cause the literal `#[weight = x]` values to be charged.
 	pub struct WeightToFee;
 	impl WeightToFeePolynomial for WeightToFee {
 		type Balance = Balance;
+
 		fn polynomial() -> WeightToFeeCoefficients<Self::Balance> {
-			let p = super::currency::MICRO_UNITS;
-			let q = 100 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
+			let p = super::currency::CENTI;
+			let q = 10 * Balance::from(ExtrinsicBaseWeight::get().ref_time());
+			let coeff_integer = p / q;
+			let coeff_frac = Perbill::from_rational(p % q, q);
+			let multiplier = FixedU128::saturating_from_rational(2, 1);
+			let adjusted_coeff_integer =
+				(coeff_integer * multiplier.into_inner()) / FixedU128::DIV as Balance;
+
 			smallvec![WeightToFeeCoefficient {
 				degree: 1,
 				negative: false,
-				coeff_frac: Perbill::from_rational(p % q, q),
-				coeff_integer: p / q,
+				coeff_integer: adjusted_coeff_integer,
+				coeff_frac,
 			}]
 		}
 	}
@@ -110,8 +111,11 @@ pub mod fee {
 
 #[cfg(test)]
 mod tests {
-	use super::{currency::MILLI_UNITS, fee::WeightToFee};
-	use crate::{currency::MICRO_UNITS, weights::ExtrinsicBaseWeight};
+	use super::{
+		currency::{MILLI, UNITS},
+		fee::WeightToFee,
+	};
+	use crate::weights::ExtrinsicBaseWeight;
 	use frame_support::weights::{
 		constants::WEIGHT_REF_TIME_PER_SECOND, Weight, WeightToFee as WeightToFeeT,
 	};
@@ -125,8 +129,8 @@ mod tests {
 		// A full block should cost between 1,00 and 1,000 UNITS.
 		let full_block = WeightToFee::weight_to_fee(&MAXIMUM_BLOCK_WEIGHT);
 		println!("Full Block {}", full_block);
-		assert!(full_block >= 1_00 * MICRO_UNITS);
-		assert!(full_block <= 2_000 * MICRO_UNITS);
+		assert!(full_block >= 1_00 * UNITS);
+		assert!(full_block <= 2_000 * UNITS);
 	}
 
 	#[test]
@@ -135,7 +139,7 @@ mod tests {
 	fn extrinsic_base_fee_is_correct() {
 		// `ExtrinsicBaseWeight` should cost 1/10 of a UNIT
 		let x = WeightToFee::weight_to_fee(&ExtrinsicBaseWeight::get());
-		let y = MILLI_UNITS / 10;
-		assert!(x.max(y) - x.min(y) < MILLI_UNITS);
+		let y = UNITS / 10;
+		assert!(x.max(y) - x.min(y) < MILLI);
 	}
 }

@@ -21,42 +21,36 @@
 
 pub mod bootstrap;
 
-pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
-use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+pub use cord_primitives::{AccountId, AccountPublic, Balance, NodeId, Signature};
 use sc_chain_spec::ChainSpecExtension;
-use sc_consensus_grandpa::AuthorityId as GrandpaId;
 pub use sc_service::{ChainType, Properties};
 use serde::{Deserialize, Serialize};
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
-use sp_consensus_babe::AuthorityId as BabeId;
-use sp_core::{sr25519, Pair, Public};
-use sp_runtime::traits::{IdentifyAccount, Verify};
-type AccountPublic = <Signature as Verify>::Signer;
+use sp_core::{Pair, Public};
+// use sp_runtime::traits::Verify;
+// type AccountPublic = <Signature as Verify>::Signer;
 use sc_telemetry::TelemetryEndpoints;
 
 #[cfg(feature = "braid-native")]
-pub use cord_braid_runtime_constants::currency::UNITS as BRAID_UNITS;
+pub use cord_braid_runtime::genesis_config_presets::{
+	cord_braid_development_config_genesis, cord_braid_local_testnet_genesis,
+};
+
 #[cfg(feature = "loom-native")]
-pub use cord_loom_runtime_constants::currency::UNITS as LOOM_UNITS;
+pub use cord_loom_runtime::genesis_config_presets::{
+	cord_loom_development_config_genesis, cord_loom_local_testnet_genesis,
+};
+
 #[cfg(feature = "weave-native")]
-pub use cord_weave_runtime_constants::currency::WAY;
+pub use cord_weave_runtime::genesis_config_presets::{
+	cord_weave_development_config_genesis, cord_weave_local_testnet_genesis,
+};
 
 #[cfg(any(feature = "braid-native", feature = "loom-native", feature = "weave-native"))]
 const CORD_TELEMETRY_URL: &str = "wss://telemetry.cord.network/submit/";
 
-#[cfg(feature = "braid-native")]
-use cord_braid_runtime::SessionKeys as BraidSessionKeys;
-#[cfg(feature = "loom-native")]
-use cord_loom_runtime::SessionKeys as LoomSessionKeys;
-#[cfg(feature = "weave-native")]
-use cord_loom_runtime::SessionKeys as WeaveSessionKeys;
+const DEFAULT_PROTOCOL_ID: &str = "c0rd";
 
-#[cfg(any(feature = "braid-native", feature = "loom-native"))]
-use sp_std::collections::btree_map::BTreeMap;
-
-const DEFAULT_PROTOCOL_ID: &str = "cord";
-
-/// Node `ChainSpec` extensions.
+// Node `ChainSpec` extensions.
 ///
 /// Additional parameters for some Substrate core modules,
 /// customizable from the chain spec.
@@ -105,36 +99,6 @@ pub type WeaveChainSpec = GenericChainSpec;
 // 	WeaveChainSpec::from_json_bytes(&include_bytes!("../chain-specs/weave.json")[..])
 // }
 
-#[cfg(feature = "braid-native")]
-fn braid_session_keys(
-	babe: BabeId,
-	grandpa: GrandpaId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> BraidSessionKeys {
-	BraidSessionKeys { babe, grandpa, im_online, authority_discovery }
-}
-
-#[cfg(feature = "loom-native")]
-fn loom_session_keys(
-	babe: BabeId,
-	grandpa: GrandpaId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> LoomSessionKeys {
-	LoomSessionKeys { babe, grandpa, im_online, authority_discovery }
-}
-
-#[cfg(feature = "weave-native")]
-fn weave_session_keys(
-	babe: BabeId,
-	grandpa: GrandpaId,
-	im_online: ImOnlineId,
-	authority_discovery: AuthorityDiscoveryId,
-) -> WeaveSessionKeys {
-	WeaveSessionKeys { babe, grandpa, im_online, authority_discovery }
-}
-
 /// Helper function to generate a crypto pair from seed
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
 	TPublic::Pair::from_string(&format!("//{}", seed), None)
@@ -152,85 +116,6 @@ pub fn get_properties(symbol: &str, decimals: u32, ss58format: u32) -> Propertie
 	properties
 }
 
-/// Helper function to generate an account ID from seed
-pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
-where
-	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
-{
-	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
-}
-
-/// Helper function to generate controller and session key from seed
-pub fn get_authority_keys_from_seed(
-	seed: &str,
-) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
-	let keys = get_authority_keys(seed);
-	(keys.0, keys.1, keys.2, keys.3, keys.4)
-}
-
-/// Helper function to generate  controller and session key from seed
-pub fn get_authority_keys(
-	seed: &str,
-) -> (AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId) {
-	(
-		get_account_id_from_seed::<sr25519::Public>(seed),
-		get_from_seed::<BabeId>(seed),
-		get_from_seed::<GrandpaId>(seed),
-		get_from_seed::<ImOnlineId>(seed),
-		get_from_seed::<AuthorityDiscoveryId>(seed),
-	)
-}
-
-fn member_accounts() -> Vec<AccountId> {
-	vec![
-		(get_account_id_from_seed::<sr25519::Public>("Alice")),
-		(get_account_id_from_seed::<sr25519::Public>("Bob")),
-		(get_account_id_from_seed::<sr25519::Public>("Charlie")),
-	]
-}
-
-#[cfg(feature = "braid-native")]
-fn braid_development_config_genesis() -> serde_json::Value {
-	braid_local_genesis(
-		vec![get_authority_keys_from_seed("Alice")],
-		vec![(
-			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-		)],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
-#[cfg(feature = "braid-native")]
-fn braid_local_config_genesis() -> serde_json::Value {
-	braid_local_genesis(
-		vec![
-			get_authority_keys_from_seed("Alice"),
-			get_authority_keys_from_seed("Bob"),
-			get_authority_keys_from_seed("Charlie"),
-		],
-		vec![
-			(
-				b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			),
-			(
-				b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-			),
-			(
-				b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			),
-			(
-				b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-			),
-		],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
 #[cfg(feature = "braid-native")]
 pub fn braid_development_config() -> Result<BraidChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 3893);
@@ -241,7 +126,7 @@ pub fn braid_development_config() -> Result<BraidChainSpec, String> {
 	.with_name("Braid Development")
 	.with_id("braid-dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(braid_development_config_genesis())
+	.with_genesis_config_patch(cord_braid_development_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -252,7 +137,7 @@ pub fn braid_development_config() -> Result<BraidChainSpec, String> {
 }
 
 #[cfg(feature = "braid-native")]
-pub fn braid_local_config() -> Result<BraidChainSpec, String> {
+pub fn braid_local_testnet_config() -> Result<BraidChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 3893);
 	Ok(BraidChainSpec::builder(
 		cord_braid_runtime::WASM_BINARY.ok_or("Braid wasm not available")?,
@@ -261,7 +146,7 @@ pub fn braid_local_config() -> Result<BraidChainSpec, String> {
 	.with_name("Braid Local Testnet")
 	.with_id("braid-local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(braid_local_config_genesis())
+	.with_genesis_config_patch(cord_braid_local_testnet_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -269,97 +154,6 @@ pub fn braid_local_config() -> Result<BraidChainSpec, String> {
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(properties)
 	.build())
-}
-
-#[cfg(feature = "braid-native")]
-fn braid_local_genesis(
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
-	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
-	root_key: AccountId,
-) -> serde_json::Value {
-	const ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
-
-	serde_json::json!( {
-		"balances": {
-			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
-		},
-		"networkParameters": {"permissioned": true},
-		"nodeAuthorization":  {
-			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"networkMembership":  {
-			"members": member_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		},
-		"authorityMembership":  {
-			"initialAuthorities": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"session":  {
-			"keys": initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						braid_session_keys(
-							x.1.clone(),
-							x.2.clone(),
-							x.3.clone(),
-							x.4.clone(),
-						),
-					)
-				})
-				.collect::<Vec<_>>(),
-		},
-		"babe":  {
-			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		"sudo": { "key": Some(root_key) },
-	})
-}
-
-#[cfg(feature = "loom-native")]
-fn loom_development_config_genesis() -> serde_json::Value {
-	loom_local_genesis(
-		vec![get_authority_keys_from_seed("Alice")],
-		vec![(
-			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-		)],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
-#[cfg(feature = "loom-native")]
-fn loom_local_config_genesis() -> serde_json::Value {
-	loom_local_genesis(
-		vec![
-			get_authority_keys_from_seed("Alice"),
-			get_authority_keys_from_seed("Bob"),
-			get_authority_keys_from_seed("Charlie"),
-		],
-		vec![
-			(
-				b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			),
-			(
-				b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-			),
-			(
-				b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			),
-			(
-				b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-			),
-		],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
 }
 
 #[cfg(feature = "loom-native")]
@@ -372,7 +166,7 @@ pub fn loom_development_config() -> Result<LoomChainSpec, String> {
 	.with_name("Loom Development")
 	.with_id("loom-dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(loom_development_config_genesis())
+	.with_genesis_config_patch(cord_loom_development_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -383,7 +177,7 @@ pub fn loom_development_config() -> Result<LoomChainSpec, String> {
 }
 
 #[cfg(feature = "loom-native")]
-pub fn loom_local_config() -> Result<LoomChainSpec, String> {
+pub fn loom_local_testnet_config() -> Result<LoomChainSpec, String> {
 	let properties = get_properties("UNITS", 12, 4926);
 	Ok(LoomChainSpec::builder(
 		cord_loom_runtime::WASM_BINARY.ok_or("Loom wasm not available")?,
@@ -392,7 +186,7 @@ pub fn loom_local_config() -> Result<LoomChainSpec, String> {
 	.with_name("Loom Local Testnet")
 	.with_id("loom-local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(loom_local_config_genesis())
+	.with_genesis_config_patch(cord_loom_local_testnet_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -402,112 +196,9 @@ pub fn loom_local_config() -> Result<LoomChainSpec, String> {
 	.build())
 }
 
-#[cfg(feature = "loom-native")]
-fn loom_local_genesis(
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
-	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
-	root_key: AccountId,
-) -> serde_json::Value {
-	const ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
-
-	serde_json::json!( {
-		"balances": {
-			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
-		},
-		"networkParameters": {"permissioned": true},
-		"nodeAuthorization":  {
-			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"networkMembership":  {
-			"members": member_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		},
-		"authorityMembership":  {
-			"initialAuthorities": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"session":  {
-			"keys": initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						loom_session_keys(
-							x.1.clone(),
-							x.2.clone(),
-							x.3.clone(),
-							x.4.clone(),
-						),
-					)
-				})
-				.collect::<Vec<_>>(),
-		},
-		"babe":  {
-			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		"councilMembership":  {
-			"members": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"technicalMembership":  {
-			"members": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"sudo": { "key": Some(root_key) },
-	})
-}
-
-#[cfg(feature = "weave-native")]
-fn weave_development_config_genesis() -> serde_json::Value {
-	weave_local_genesis(
-		vec![get_authority_keys_from_seed("Alice")],
-		vec![(
-			b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-			get_account_id_from_seed::<sr25519::Public>("Alice"),
-		)],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
-#[cfg(feature = "weave-native")]
-fn weave_local_config_genesis() -> serde_json::Value {
-	weave_local_genesis(
-		vec![
-			get_authority_keys_from_seed("Alice"),
-			get_authority_keys_from_seed("Bob"),
-			get_authority_keys_from_seed("Charlie"),
-		],
-		vec![
-			(
-				b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Alice"),
-			),
-			(
-				b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Bob"),
-			),
-			(
-				b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Charlie"),
-			),
-			(
-				b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(),
-				get_account_id_from_seed::<sr25519::Public>("Dave"),
-			),
-		],
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-	)
-}
-
 #[cfg(feature = "weave-native")]
 pub fn weave_development_config() -> Result<WeaveChainSpec, String> {
-	let properties = get_properties("WAY", 12, 29);
+	let properties = get_properties("UNITS", 12, 29);
 	Ok(WeaveChainSpec::builder(
 		cord_weave_runtime::WASM_BINARY.ok_or("Weave development wasm not available")?,
 		Default::default(),
@@ -515,7 +206,7 @@ pub fn weave_development_config() -> Result<WeaveChainSpec, String> {
 	.with_name("Weave Development")
 	.with_id("weave-dev")
 	.with_chain_type(ChainType::Development)
-	.with_genesis_config_patch(weave_development_config_genesis())
+	.with_genesis_config_patch(cord_weave_development_config_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -526,16 +217,16 @@ pub fn weave_development_config() -> Result<WeaveChainSpec, String> {
 }
 
 #[cfg(feature = "weave-native")]
-pub fn weave_local_config() -> Result<WeaveChainSpec, String> {
-	let properties = get_properties("WAY", 12, 29);
+pub fn weave_local_testnet_config() -> Result<WeaveChainSpec, String> {
+	let properties = get_properties("UNITS", 12, 29);
 	Ok(WeaveChainSpec::builder(
-		cord_weave_runtime::WASM_BINARY.ok_or("Weave wasm not available")?,
+		cord_weave_runtime::WASM_BINARY.ok_or("Loom wasm not available")?,
 		Default::default(),
 	)
 	.with_name("Weave Local Testnet")
 	.with_id("weave-local")
 	.with_chain_type(ChainType::Local)
-	.with_genesis_config_patch(weave_local_config_genesis())
+	.with_genesis_config_patch(cord_weave_local_testnet_genesis())
 	.with_telemetry_endpoints(
 		TelemetryEndpoints::new(vec![(CORD_TELEMETRY_URL.to_string(), 0)])
 			.expect("Cord telemetry url is valid; qed"),
@@ -543,53 +234,4 @@ pub fn weave_local_config() -> Result<WeaveChainSpec, String> {
 	.with_protocol_id(DEFAULT_PROTOCOL_ID)
 	.with_properties(properties)
 	.build())
-}
-
-#[cfg(feature = "weave-native")]
-fn weave_local_genesis(
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
-	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
-	root_key: AccountId,
-) -> serde_json::Value {
-	const ENDOWMENT: Balance = 100_000_000_000 * WAY;
-
-	serde_json::json!( {
-		"balances": {
-			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
-		},
-		"networkParameters": {"permissioned": false},
-		"nodeAuthorization":  {
-			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"networkMembership":  {
-			"members": member_accounts().into_iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		},
-		"authorityMembership":  {
-			"initialAuthorities": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
-		},
-		"session":  {
-			"keys": initial_authorities
-				.iter()
-				.map(|x| {
-					(
-						x.0.clone(),
-						x.0.clone(),
-						weave_session_keys(
-							x.1.clone(),
-							x.2.clone(),
-							x.3.clone(),
-							x.4.clone(),
-						),
-					)
-				})
-				.collect::<Vec<_>>(),
-		},
-		"babe":  {
-			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
-		},
-		"sudo": { "key": Some(root_key) },
-	})
 }

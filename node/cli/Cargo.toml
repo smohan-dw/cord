@@ -28,12 +28,14 @@ crate-type = ["cdylib", "rlib"]
 # third-party dependencies
 array-bytes = { workspace = true }
 clap = { features = ["derive"], optional = true, workspace = true }
-codec = { workspace = true }
+codec = { workspace = true, default-features = true }
 serde = { features = ["derive"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
 jsonrpsee = { features = ["server"], workspace = true }
 futures = { workspace = true }
 log = { workspace = true, default-features = true }
+rand = { workspace = true, default-features = true }
+subxt-signer = { workspace = true, features = ["unstable-eth"] }
 hex = { workspace = true }
 toml = { workspace = true }
 kvdb = { workspace = true }
@@ -45,83 +47,89 @@ tikv-jemallocator = { workspace = true, optional = true, features = [
 	"unprefixed_malloc_on_supported_platforms",
 ] }
 
-# Substrate primitives
-sp-authority-discovery = { features = ["std"], workspace = true }
-sp-consensus = { workspace = true }
-sp-consensus-babe = { features = ["std"], workspace = true }
-sp-consensus-grandpa = { features = ["std"], workspace = true }
-sp-inherents = { features = ["std"], workspace = true }
-sp-api = { features = ["std"], workspace = true }
-sp-block-builder = { features = ["std"], workspace = true }
-sp-blockchain = { workspace = true }
-sp-core = { features = ["std"], workspace = true }
-sp-io = { features = ["std"], workspace = true }
-sp-keystore = { features = ["std"], workspace = true }
-sp-offchain = { features = ["std"], workspace = true }
-sp-runtime = { features = ["std"], workspace = true }
-sp-session = { features = ["std"], workspace = true }
-sp-storage = { features = ["std"], workspace = true }
-sp-transaction-pool = { features = ["std"], workspace = true }
-sp-timestamp = { features = ["std"], workspace = true }
-sp-state-machine = { features = ["std"], workspace = true }
-sp-weights = { features = ["std"], workspace = true }
-sp-genesis-builder = { features = ["std"], workspace = true }
-sp-version = { features = ["std"], workspace = true }
-sp-transaction-storage-proof = { features = ["std"], workspace = true }
-sp-keyring = { features = ["std"], workspace = true }
-sp-std = { features = ["std"], workspace = true }
-sp-maybe-compressed-blob = { workspace = true }
+# Substrate Client dependenciess
+sp-authority-discovery = { workspace = true, default-features = true }
+sp-consensus = { workspace = true, default-features = true }
+sp-consensus-babe = { workspace = true, default-features = true }
+sp-consensus-beefy = { workspace = true, default-features = true }
+sp-consensus-grandpa = { workspace = true, default-features = true }
+sp-inherents = { workspace = true, default-features = true }
+sp-api = { workspace = true, default-features = true }
+sp-block-builder = { workspace = true, default-features = true }
+sp-blockchain = { workspace = true, default-features = true }
+sp-core = { workspace = true, default-features = true }
+sp-io = { features = ["std"], workspace = true, default-features = true }
+sp-keystore = { workspace = true, default-features = true }
+sp-offchain = { workspace = true, default-features = true }
+sp-runtime = { workspace = true, default-features = true }
+sp-session = { workspace = true, default-features = true }
+sp-storage = { workspace = true, default-features = true }
+sp-transaction-pool = { workspace = true, default-features = true }
+sp-timestamp = { workspace = true, default-features = true }
+sp-state-machine = { workspace = true, default-features = true }
+sp-weights = { workspace = true, default-features = true }
+sp-genesis-builder = { workspace = true, default-features = true }
+sp-version = { workspace = true, default-features = true }
+sp-transaction-storage-proof = { features = [
+	"std",
+], workspace = true, default-features = true }
+sp-keyring = { workspace = true, default-features = true }
+sp-std = { workspace = true, default-features = true }
+sp-maybe-compressed-blob = { workspace = true, default-features = true }
+sp-mmr-primitives = { workspace = true, default-features = true }
+sp-statement-store = { workspace = true, default-features = true }
 
-# Substrate Client dependencies
-sc-authority-discovery = { workspace = true }
-sc-consensus = { workspace = true }
-sc-consensus-slots = { workspace = true }
-sc-consensus-babe = { workspace = true }
-sc-consensus-grandpa = { workspace = true }
+sc-authority-discovery = { workspace = true, default-features = true }
+sc-consensus = { workspace = true, default-features = true }
+sc-consensus-slots = { workspace = true, default-features = true }
+sc-consensus-babe = { workspace = true, default-features = true }
+sc-consensus-beefy = { workspace = true, default-features = true }
+sc-consensus-grandpa = { workspace = true, default-features = true }
 sc-block-builder = { workspace = true }
-sc-chain-spec = { workspace = true }
-sc-client-api = { workspace = true }
+sc-chain-spec = { workspace = true, default-features = true }
+sc-client-api = { workspace = true, default-features = true }
 sc-client-db = { workspace = true }
-sc-executor = { workspace = true }
-sc-network = { workspace = true }
+sc-executor = { workspace = true, default-features = true }
+sc-network = { workspace = true, default-features = true }
 sc-network-common = { workspace = true }
-sc-network-sync = { workspace = true }
-sc-transaction-pool = { workspace = true }
-sc-transaction-pool-api = { workspace = true }
-sc-sync-state-rpc = { workspace = true }
-sc-keystore = { workspace = true }
-sc-basic-authorship = { workspace = true }
-sc-offchain = { workspace = true }
-sc-sysinfo = { workspace = true }
+sc-network-sync = { workspace = true, default-features = true }
+sc-network-statement = { workspace = true, default-features = true }
+sc-transaction-pool = { workspace = true, default-features = true }
+sc-transaction-pool-api = { workspace = true, default-features = true }
+sc-sync-state-rpc = { workspace = true, default-features = true }
+sc-keystore = { workspace = true, default-features = true }
+sc-basic-authorship = { workspace = true, default-features = true }
+sc-offchain = { workspace = true, default-features = true }
+sc-sysinfo = { workspace = true, default-features = true }
+sc-statement-store = { workspace = true, default-features = true }
 sc-service = { workspace = true }
-sc-telemetry = { workspace = true }
+sc-telemetry = { workspace = true, default-features = true }
 sc-storage-monitor = { workspace = true }
 sc-rpc = { workspace = true }
+mmr-gadget = { workspace = true, default-features = true }
 
 # frame dependencies
 frame-benchmarking = { features = ["std"], workspace = true }
 frame-system = { features = ["std"], workspace = true }
 frame-support = { features = ["std"], workspace = true }
 frame-system-rpc-runtime-api = { features = ["std"], workspace = true }
+frame-metadata-hash-extension = { features = ["std"], workspace = true }
 pallet-babe = { features = ["std"], workspace = true }
 pallet-im-online = { features = ["std"], workspace = true }
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
 pallet-contracts = { features = ["std"], workspace = true }
-pallet-did-runtime-api = { features = ["std"], workspace = true }
-pallet-transaction-weight-runtime-api = { features = ["std"], workspace = true }
-pallet-assets-runtime-api = { features = ["std"], workspace = true }
 pallet-asset-conversion = { features = ["std"], workspace = true }
-substrate-prometheus-endpoint = { workspace = true }
+prometheus-endpoint = { workspace = true }
 
 # cord-specific dependencies
 cord-braid-runtime = { workspace = true, features = ["std"], optional = true }
 cord-loom-runtime = { workspace = true, features = ["std"], optional = true }
 cord-weave-runtime = { workspace = true, features = ["std"], optional = true }
-cord-runtime-common = { workspace = true }
+cord-runtime-common = { workspace = true, default-features = true }
 cord-primitives = { features = ["std"], workspace = true }
 network-membership = { features = ["std"], workspace = true }
-cord-node-inspect = { workspace = true }
+cord-node-inspect = { optional = true, workspace = true, default-features = true }
 cord-node-rpc = { workspace = true }
 cord-braid-runtime-constants = { features = [
 	"std",
@@ -134,6 +142,7 @@ cord-weave-runtime-constants = { features = [
 ], workspace = true, optional = true }
 pallet-config = { features = ["std"], workspace = true }
 pallet-network-membership = { features = ["std"], workspace = true }
+pallet-staking = { workspace = true }
 
 # CLI-specific dependencies
 sc-cli = { workspace = true, optional = true }
@@ -145,43 +154,31 @@ tikv-jemallocator = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
-env_logger = { workspace = true }
-assert_matches = { workspace = true }
-serial_test = { workspace = true }
-tempfile = { workspace = true }
-sc-keystore = { workspace = true }
-sc-client-db = { workspace = true }
-sc-consensus = { workspace = true }
-sc-consensus-babe = { workspace = true }
-sc-consensus-epochs = { workspace = true }
-cord-service-test = { workspace = true }
-sp-tracing = { workspace = true }
-sp-blockchain = { workspace = true }
-sp-crypto-hashing = { workspace = true }
 futures = { workspace = true }
+tempfile = { workspace = true }
 assert_cmd = { workspace = true }
 nix = { features = ["signal"], workspace = true }
 regex = { workspace = true }
+platforms = { workspace = true }
 soketto = { workspace = true }
-tokio = { features = ["macros", "parking_lot", "time"], workspace = true }
+criterion = { features = [
+	"async_tokio",
+], workspace = true, default-features = true }
+tokio = { features = [
+	"macros",
+	"parking_lot",
+	"time",
+], workspace = true, default-features = true }
 tokio-util = { features = ["compat"], workspace = true }
-cord-cli-test-utils = { workspace = true }
-frame-support = { workspace = true }
-cord-node-testing = { workspace = true }
-pallet-balances = { workspace = true }
-sp-application-crypto = { workspace = true }
-pallet-root-testing = { workspace = true }
-pallet-transaction-payment = { workspace = true }
-pallet-timestamp = { workspace = true }
-pallet-sudo = { workspace = true }
-sp-consensus-babe = { workspace = true }
-sp-externalities = { workspace = true }
+wait-timeout = { workspace = true }
+wat = { workspace = true }
+serde_json = { workspace = true, default-features = true }
+scale-info = { features = [
+	"derive",
+	"serde",
+], workspace = true, default-features = true }
 sp-keyring = { workspace = true }
-sp-runtime = { workspace = true }
-serde_json = { workspace = true }
-scale-info = { features = ["derive", "serde"], workspace = true }
-sp-trie = { workspace = true }
-sp-state-machine = { workspace = true }
+pretty_assertions.workspace = true
 
 [build-dependencies]
 clap = { workspace = true, optional = true }
@@ -189,28 +186,28 @@ clap_complete = { workspace = true, optional = true }
 cord-node-inspect = { workspace = true, optional = true }
 frame-benchmarking-cli = { workspace = true, optional = true }
 substrate-build-script-utils = { workspace = true, optional = true }
-pallet-balances = { workspace = true }
 sc-storage-monitor = { workspace = true }
+
 
 [features]
 default = [
 	"cli",
 	"db",
 	"full-node",
+	"weave-native",
 	"braid-native",
 	"loom-native",
-	"weave-native",
 ]
 
 full-node = ["parity-db"]
 
 cli = [
-	"cord-node-inspect",
-	"sc-cli",
-	"frame-benchmarking-cli",
-	"sc-service/rocksdb",
 	"clap",
 	"clap_complete",
+	"frame-benchmarking-cli",
+	"cord-node-inspect",
+	"sc-cli",
+	"sc-service/rocksdb",
 	"substrate-build-script-utils",
 ]
 
@@ -227,19 +224,18 @@ loom-native = ["bitvec", "cord-loom-runtime", "cord-loom-runtime-constants"]
 weave-native = ["bitvec", "cord-weave-runtime", "cord-weave-runtime-constants"]
 
 runtime-benchmarks = [
+	"cord-runtime-common/runtime-benchmarks",
+	"cord-weave-runtime?/runtime-benchmarks",
+	"cord-braid-runtime?/runtime-benchmarks",
 	"cord-loom-runtime/runtime-benchmarks",
 	"frame-benchmarking-cli/runtime-benchmarks",
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"cord-node-inspect?/runtime-benchmarks",
-	"pallet-balances/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"sc-service/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"cord-braid-runtime?/runtime-benchmarks",
-	"cord-runtime-common/runtime-benchmarks",
-	"cord-weave-runtime?/runtime-benchmarks",
 	"pallet-asset-conversion/runtime-benchmarks",
 	"pallet-babe/runtime-benchmarks",
 	"pallet-config/runtime-benchmarks",
@@ -249,16 +245,16 @@ runtime-benchmarks = [
 ]
 # Enable features that allow the runtime to be tried and debugged.
 try-runtime = [
+	"cord-runtime-common/try-runtime",
+	"cord-weave-runtime?/try-runtime",
+	"cord-loom-runtime/try-runtime",
+	"cord-braid-runtime/try-runtime",
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"cord-loom-runtime/try-runtime",
-	"pallet-balances/try-runtime",
 	"pallet-im-online/try-runtime",
-	"pallet-root-testing/try-runtime",
 	"pallet-transaction-payment/try-runtime",
 	"sp-runtime/try-runtime",
 	"cord-braid-runtime?/try-runtime",
-	"cord-runtime-common/try-runtime",
 	"cord-weave-runtime?/try-runtime",
 	"pallet-asset-conversion/try-runtime",
 	"pallet-babe/try-runtime",

@@ -28,18 +28,21 @@ use cord_weave_runtime::SessionKeys as WeaveSessionKeys;
 
 pub use cord_primitives::{AccountId, Balance, NodeId, Signature};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
+use pallet_staking::{Forcing, StakerStatus};
 use sc_consensus_grandpa::AuthorityId as GrandpaId;
 use sc_service::ChainType;
 use sc_telemetry::TelemetryEndpoints;
 use serde::Deserialize;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_consensus_babe::AuthorityId as BabeId;
+use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_core::crypto::UncheckedInto;
+use sp_runtime::Perbill;
 use sp_std::collections::btree_map::BTreeMap;
 
-pub use cord_braid_runtime_constants::currency::UNITS as BRAID_UNITS;
-pub use cord_loom_runtime_constants::currency::UNITS as LOOM_UNITS;
-pub use cord_weave_runtime_constants::currency::WAY;
+// pub use cord_braid_runtime_constants::currency::UNITS as BRAID_UNITS;
+// pub use cord_loom_runtime_constants::currency::UNITS as LOOM_UNITS;
+pub use cord_weave_runtime_constants::currency::UNITS;
 
 use crate::chain_spec::{get_properties, Extensions, CORD_TELEMETRY_URL, DEFAULT_PROTOCOL_ID};
 
@@ -77,17 +80,19 @@ pub type CordChainSpec = sc_service::GenericChainSpec<Extensions>;
 // pub type LoomChainSpec = sc_service::GenericChainSpec<LoomRuntimeGenesisConfig, Extensions>;
 // pub type WeaveChainSpec = sc_service::GenericChainSpec<WeaveRuntimeGenesisConfig, Extensions>;
 
-pub const BRAID_ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
-pub const LOOOM_ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
-pub const WEAVE_ENDOWMENT: Balance = 10_000_000 * WAY;
+// pub const BRAID_ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
+// pub const LOOOM_ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
+pub const ENDOWMENT: Balance = 10_000_000 * UNITS;
+const STASH: u128 = 100_000 * UNITS;
 
 fn braid_session_keys(
 	babe: BabeId,
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
+	beefy: BeefyId,
 ) -> BraidSessionKeys {
-	BraidSessionKeys { babe, grandpa, im_online, authority_discovery }
+	BraidSessionKeys { babe, grandpa, im_online, authority_discovery, beefy }
 }
 
 fn loom_session_keys(
@@ -95,8 +100,9 @@ fn loom_session_keys(
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
+	beefy: BeefyId,
 ) -> LoomSessionKeys {
-	LoomSessionKeys { babe, grandpa, im_online, authority_discovery }
+	LoomSessionKeys { babe, grandpa, im_online, authority_discovery, beefy }
 }
 
 fn weave_session_keys(
@@ -104,8 +110,9 @@ fn weave_session_keys(
 	grandpa: GrandpaId,
 	im_online: ImOnlineId,
 	authority_discovery: AuthorityDiscoveryId,
+	beefy: BeefyId,
 ) -> WeaveSessionKeys {
-	WeaveSessionKeys { babe, grandpa, im_online, authority_discovery }
+	WeaveSessionKeys { babe, grandpa, im_online, authority_discovery, beefy }
 }
 
 fn cord_braid_custom_config_genesis(config: ChainParams) -> serde_json::Value {
@@ -122,20 +129,27 @@ fn cord_braid_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 		})
 		.collect();
 
-	let initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)> =
-		config
-			.authorities
-			.iter()
-			.map(|auth| {
-				(
-					array_bytes::hex_n_into_unchecked(&auth[0]),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				)
-			})
-			.collect();
+	let initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		BeefyId,
+	)> = config
+		.authorities
+		.iter()
+		.map(|auth| {
+			(
+				array_bytes::hex_n_into_unchecked(&auth[0]),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+			)
+		})
+		.collect();
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
 	cord_braid_custom_genesis(
@@ -160,20 +174,27 @@ fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 		})
 		.collect();
 
-	let initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)> =
-		config
-			.authorities
-			.iter()
-			.map(|auth| {
-				(
-					array_bytes::hex_n_into_unchecked(&auth[0]),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				)
-			})
-			.collect();
+	let initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		BeefyId,
+	)> = config
+		.authorities
+		.iter()
+		.map(|auth| {
+			(
+				array_bytes::hex_n_into_unchecked(&auth[0]),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+			)
+		})
+		.collect();
 
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
 	cord_loom_custom_genesis(
@@ -185,41 +206,30 @@ fn cord_loom_custom_config_genesis(config: ChainParams) -> serde_json::Value {
 }
 
 fn cord_weave_custom_config_genesis(config: ChainParams) -> serde_json::Value {
-	let initial_network_members: Vec<AccountId> =
-		config.network_members.iter().map(array_bytes::hex_n_into_unchecked).collect();
-
-	let initial_well_known_nodes: Vec<(NodeId, AccountId)> = config
-		.well_known_nodes
+	let initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		BeefyId,
+	)> = config
+		.authorities
 		.iter()
-		.map(|node| {
-			let node_id = node[0].as_bytes().to_vec();
-			let account = array_bytes::hex_n_into_unchecked(&node[1]);
-			(node_id, account)
+		.map(|auth| {
+			(
+				array_bytes::hex_n_into_unchecked(&auth[0]),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+				array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
+			)
 		})
 		.collect();
 
-	let initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)> =
-		config
-			.authorities
-			.iter()
-			.map(|auth| {
-				(
-					array_bytes::hex_n_into_unchecked(&auth[0]),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[1]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-					array_bytes::hex2array_unchecked(&auth[0]).unchecked_into(),
-				)
-			})
-			.collect();
-
 	let initial_sudo_key: AccountId = array_bytes::hex_n_into_unchecked(&config.sudo_key);
-	cord_weave_custom_genesis(
-		initial_network_members,
-		initial_well_known_nodes,
-		initial_authorities,
-		initial_sudo_key,
-	)
+	cord_weave_custom_genesis(initial_authorities, initial_sudo_key)
 }
 pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> {
 	let chain_name = String::from(config.chain_name());
@@ -289,11 +299,16 @@ pub fn cord_custom_config(config: ChainParams) -> Result<CordChainSpec, String> 
 fn cord_braid_custom_genesis(
 	initial_network_members: Vec<AccountId>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+	initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		BeefyId,
+	)>,
 	root_key: AccountId,
 ) -> serde_json::Value {
-	const ENDOWMENT: Balance = 10_000_000 * BRAID_UNITS;
-
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
@@ -323,6 +338,7 @@ fn cord_braid_custom_genesis(
 							x.2.clone(),
 							x.3.clone(),
 							x.4.clone(),
+							x.5.clone(),
 						),
 					)
 				})
@@ -338,11 +354,16 @@ fn cord_braid_custom_genesis(
 fn cord_loom_custom_genesis(
 	initial_network_members: Vec<AccountId>,
 	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+	initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		BeefyId,
+	)>,
 	root_key: AccountId,
 ) -> serde_json::Value {
-	const ENDOWMENT: Balance = 10_000_000 * LOOM_UNITS;
-
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
@@ -372,6 +393,7 @@ fn cord_loom_custom_genesis(
 							x.2.clone(),
 							x.3.clone(),
 							x.4.clone(),
+							x.5.clone(),
 						),
 					)
 				})
@@ -397,29 +419,19 @@ fn cord_loom_custom_genesis(
 }
 
 fn cord_weave_custom_genesis(
-	initial_network_members: Vec<AccountId>,
-	initial_well_known_nodes: Vec<(NodeId, AccountId)>,
-	initial_authorities: Vec<(AccountId, BabeId, GrandpaId, ImOnlineId, AuthorityDiscoveryId)>,
+	initial_authorities: Vec<(
+		AccountId,
+		BabeId,
+		GrandpaId,
+		ImOnlineId,
+		AuthorityDiscoveryId,
+		BeefyId,
+	)>,
 	root_key: AccountId,
 ) -> serde_json::Value {
-	const ENDOWMENT: Balance = 100_000_000_000 * WAY;
-
 	serde_json::json!( {
 		"balances": {
 			"balances": initial_authorities.iter().map(|k| (k.0.clone(), ENDOWMENT)).collect::<Vec<_>>(),
-		},
-		"networkParameters": {"permissioned": false},
-		"nodeAuthorization":  {
-			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
-		},
-		"networkMembership":  {
-			"members": initial_network_members.iter().map(|member| (member, false)).collect::<BTreeMap<_, _>>(),
-		},
-		"authorityMembership":  {
-			"initialAuthorities": initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>(),
 		},
 		"session":  {
 			"keys": initial_authorities
@@ -433,13 +445,25 @@ fn cord_weave_custom_genesis(
 							x.2.clone(),
 							x.3.clone(),
 							x.4.clone(),
+							x.5.clone(),
 						),
 					)
 				})
 				.collect::<Vec<_>>(),
 		},
+		"staking": {
+			"minimumValidatorCount": 1,
+			"validatorCount": initial_authorities.len() as u32,
+			"stakers": initial_authorities
+				.iter()
+				.map(|x| (x.0.clone(), x.0.clone(), STASH, StakerStatus::<AccountId>::Validator))
+				.collect::<Vec<_>>(),
+			"invulnerables": initial_authorities.iter().map(|x| x.0.clone()).collect::<Vec<_>>(),
+			"forceEra": Forcing::NotForcing,
+			"slashRewardFraction": Perbill::from_percent(10),
+		},
 		"babe":  {
-			"epochConfig": Some(cord_loom_runtime::BABE_GENESIS_EPOCH_CONFIG),
+			"epochConfig": Some(cord_weave_runtime::BABE_GENESIS_EPOCH_CONFIG),
 		},
 		"sudo": { "key": Some(root_key) },
 	})

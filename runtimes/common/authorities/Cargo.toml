@@ -18,7 +18,7 @@ targets = ["x86_64-unknown-linux-gnu"]
 codec = { features = ["derive"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 pallet-network-membership = { workspace = true }
-pallet-offences = { workspace = true }
+pallet-cord-offences = { workspace = true }
 log = { workspace = true }
 
 # Substrate dependencies
@@ -51,27 +51,27 @@ std = [
 	'sp-staking/std',
 	"sp-state-machine/std",
 	'pallet-session/std',
-	'pallet-offences/std',
+	'pallet-cord-offences/std',
 	'log/std',
 	"serde/std",
-	"sp-io/std"
+	"sp-io/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-support/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
-	"pallet-offences/runtime-benchmarks",
+	"pallet-cord-offences/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
 	"sp-staking/runtime-benchmarks",
-	"pallet-network-membership/runtime-benchmarks"
+	"pallet-network-membership/runtime-benchmarks",
 ]
 
 try-runtime = [
 	'frame-support/try-runtime',
 	"frame-system/try-runtime",
 	"pallet-network-membership/try-runtime",
-	"pallet-offences/try-runtime",
+	"pallet-cord-offences/try-runtime",
 	"pallet-session/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]

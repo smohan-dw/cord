@@ -48,7 +48,7 @@ use core::marker::PhantomData;
 
 /// Weight functions for `pallet_identity`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_identity::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pallet_cord_identity::WeightInfo for WeightInfo<T> {
 	/// Storage: `Identity::Registrars` (r:1 w:1)
 	/// Proof: `Identity::Registrars` (`max_values`: Some(1), `max_size`: Some(821), added: 1316, mode: `MaxEncodedLen`)
 	/// The range of component `r` is `[1, 19]`.

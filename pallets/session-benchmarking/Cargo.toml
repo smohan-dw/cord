@@ -1,5 +1,5 @@
 [package]
-name = "pallet-session-benchmarking"
+name = "pallet-cord-session-benchmarking"
 authors.workspace = true
 edition.workspace = true
 license.workspace = true

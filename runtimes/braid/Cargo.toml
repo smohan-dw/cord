@@ -43,14 +43,14 @@ pallet-did-name = { workspace = true }
 pallet-schema = { workspace = true }
 pallet-config = { workspace = true }
 pallet-chain-space = { workspace = true }
-pallet-statement = { workspace = true }
+pallet-cord-statement = { workspace = true }
 pallet-network-membership = { workspace = true }
 pallet-runtime-upgrade = { workspace = true }
-pallet-identity = { workspace = true }
-pallet-offences = { workspace = true }
-pallet-node-authorization = { workspace = true }
+pallet-cord-identity = { workspace = true }
+pallet-cord-offences = { workspace = true }
+pallet-cord-node-authorization = { workspace = true }
 pallet-network-score = { workspace = true }
-pallet-session-benchmarking = { workspace = true }
+pallet-cord-session-benchmarking = { workspace = true }
 pallet-registries = { workspace = true }
 pallet-entries = { workspace = true }
 pallet-schema-accounts = { workspace = true }
@@ -63,9 +63,11 @@ pallet-transaction-weight-runtime-api = { workspace = true }
 # Substrate
 sp-authority-discovery = { features = ["serde"], workspace = true }
 sp-consensus-babe = { features = ["serde"], workspace = true }
+sp-consensus-beefy = { workspace = true }
 sp-consensus-grandpa = { features = ["serde"], workspace = true }
 sp-api = { workspace = true }
 sp-inherents = { workspace = true }
+sp-mmr-primitives = { workspace = true }
 sp-offchain = { workspace = true }
 sp-std = { workspace = true }
 sp-runtime = { features = ["serde"], workspace = true }
@@ -73,6 +75,7 @@ sp-staking = { features = ["serde"], workspace = true }
 sp-core = { features = ["serde"], workspace = true }
 sp-io = { workspace = true }
 sp-session = { workspace = true }
+sp-statement-store = { workspace = true }
 sp-storage = { workspace = true }
 sp-version = { features = ["serde"], workspace = true }
 sp-transaction-pool = { workspace = true }
@@ -85,18 +88,24 @@ pallet-asset-conversion = { workspace = true }
 pallet-authorship = { workspace = true }
 pallet-babe = { workspace = true }
 pallet-balances = { workspace = true }
+pallet-beefy = { workspace = true }
+pallet-beefy-mmr = { workspace = true }
 pallet-contracts = { workspace = true }
 frame-executive = { workspace = true }
 pallet-grandpa = { workspace = true }
 pallet-im-online = { workspace = true }
 pallet-indices = { workspace = true }
+pallet-mmr = { workspace = true }
 pallet-multisig = { workspace = true }
 pallet-scheduler = { workspace = true }
 pallet-session = { features = ["historical"], workspace = true }
+pallet-statement = { workspace = true }
+
 pallet-transaction-payment = { workspace = true }
 pallet-transaction-payment-rpc-runtime-api = { workspace = true }
+pallet-root-testing = { workspace = true }
 pallet-sudo = { workspace = true }
-frame-support = { features = ["experimental", "tuples-96"], workspace = true }
+frame-support = { features = ["tuples-96"], workspace = true }
 frame-system = { workspace = true }
 frame-system-rpc-runtime-api = { workspace = true }
 pallet-timestamp = { workspace = true }
@@ -108,12 +117,13 @@ hex-literal = { workspace = true, optional = true }
 frame-benchmarking = { workspace = true, optional = true }
 frame-system-benchmarking = { workspace = true, optional = true }
 frame-try-runtime = { workspace = true, optional = true }
+frame-metadata-hash-extension = { workspace = true }
 
 [dev-dependencies]
 sp-staking = { workspace = true }
 
 [build-dependencies]
-substrate-wasm-builder = { workspace = true, optional = true }
+substrate-wasm-builder = { workspace = true, optional = true, default-features = true }
 
 [features]
 default = ['std']
@@ -124,6 +134,7 @@ std = [
 	"network-membership/std",
 	"authority-membership/std",
 	"frame-system-benchmarking?/std",
+	"frame-metadata-hash-extension/std",
 	"codec/std",
 	"scale-info/std",
 	"serde/std",
@@ -144,18 +155,22 @@ std = [
 	"pallet-authority-discovery/std",
 	"pallet-authorship/std",
 	"pallet-balances/std",
+	"pallet-beefy/std",
+	"pallet-beefy-mmr/std",
 	"pallet-config/std",
 	"pallet-contracts/std",
 	"pallet-grandpa/std",
-	"pallet-identity/std",
+	"pallet-cord-identity/std",
 	"pallet-im-online/std",
 	"pallet-indices/std",
 	"pallet-insecure-randomness-collective-flip/std",
+	"pallet-mmr/std",
 	"pallet-multisig/std",
-	"pallet-offences/std",
+	"pallet-cord-offences/std",
 	"pallet-scheduler/std",
-	"pallet-session-benchmarking/std",
+	"pallet-cord-session-benchmarking/std",
 	"pallet-session/std",
+	"pallet-statement/std",
 	"pallet-transaction-payment-rpc-runtime-api/std",
 	"pallet-transaction-payment/std",
 	"pallet-sudo/std",
@@ -167,7 +182,7 @@ std = [
 	"pallet-did-name/std",
 	"pallet-schema/std",
 	"pallet-chain-space/std",
-	"pallet-statement/std",
+	"pallet-cord-statement/std",
 	"pallet-registries/std",
 	"pallet-entries/std",
 	"pallet-schema-accounts/std",
@@ -176,7 +191,7 @@ std = [
 	"pallet-runtime-upgrade/std",
 	"pallet-assets-runtime-api/std",
 	"pallet-did-runtime-api/std",
-	"pallet-node-authorization/std",
+	"pallet-cord-node-authorization/std",
 	"pallet-transaction-weight-runtime-api/std",
 	"sp-runtime/std",
 	"sp-staking/std",
@@ -185,15 +200,18 @@ std = [
 	"sp-version/std",
 	"log/std",
 	"sp-consensus-babe/std",
+	"sp-consensus-beefy/std",
 	"sp-consensus-grandpa/std",
 	"sp-genesis-builder/std",
+	"sp-mmr-primitives/std",
 	"sp-session/std",
+	"sp-statement-store/std",
 	"sp-storage/std",
 	"cord-braid-runtime-constants/std",
 	"substrate-wasm-builder",
 	"frame-try-runtime?/std",
 	"primitive-types/std",
-	"sp-io/std"
+	"sp-io/std",
 ]
 runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
@@ -206,13 +224,14 @@ runtime-benchmarks = [
 	"pallet-balances/runtime-benchmarks",
 	"pallet-contracts/runtime-benchmarks",
 	"pallet-grandpa/runtime-benchmarks",
-	"pallet-identity/runtime-benchmarks",
+	"pallet-cord-identity/runtime-benchmarks",
 	"pallet-im-online/runtime-benchmarks",
 	"pallet-indices/runtime-benchmarks",
+	"pallet-mmr/runtime-benchmarks",
 	"pallet-multisig/runtime-benchmarks",
-	"pallet-offences/runtime-benchmarks",
+	"pallet-cord-offences/runtime-benchmarks",
 	"pallet-scheduler/runtime-benchmarks",
-	"pallet-session-benchmarking/runtime-benchmarks",
+	"pallet-cord-session-benchmarking/runtime-benchmarks",
 	"pallet-session/try-runtime",
 	"pallet-remark/runtime-benchmarks",
 	"pallet-timestamp/runtime-benchmarks",
@@ -220,7 +239,7 @@ runtime-benchmarks = [
 	"pallet-did/runtime-benchmarks",
 	"pallet-did-name/runtime-benchmarks",
 	"pallet-schema/runtime-benchmarks",
-	"pallet-statement/runtime-benchmarks",
+	"pallet-cord-statement/runtime-benchmarks",
 	"pallet-chain-space/runtime-benchmarks",
 	"pallet-network-membership/runtime-benchmarks",
 	"hex-literal",
@@ -244,16 +263,19 @@ try-runtime = [
 	"pallet-authority-discovery/try-runtime",
 	"pallet-authorship/try-runtime",
 	"pallet-balances/try-runtime",
+	"pallet-beefy-mmr/try-runtime",
+	"pallet-beefy/try-runtime",
 	"pallet-contracts/try-runtime",
 	"pallet-grandpa/try-runtime",
-	"pallet-identity/try-runtime",
+	"pallet-cord-identity/try-runtime",
 	"pallet-im-online/try-runtime",
 	"pallet-indices/try-runtime",
 	"pallet-insecure-randomness-collective-flip/try-runtime",
+	"pallet-mmr/try-runtime",
 	"pallet-multisig/try-runtime",
-	"pallet-offences/try-runtime",
+	"pallet-cord-offences/try-runtime",
 	"pallet-scheduler/try-runtime",
-	"pallet-session-benchmarking/try-runtime",
+	"pallet-cord-session-benchmarking/try-runtime",
 	"pallet-session/try-runtime",
 	"pallet-sudo/try-runtime",
 	"pallet-timestamp/try-runtime",
@@ -262,11 +284,11 @@ try-runtime = [
 	"pallet-babe/try-runtime",
 	"pallet-schema/try-runtime",
 	"pallet-chain-space/try-runtime",
-	"pallet-statement/try-runtime",
+	"pallet-cord-statement/try-runtime",
 	"pallet-did/try-runtime",
 	"pallet-did-name/try-runtime",
 	"pallet-network-score/try-runtime",
-	"pallet-node-authorization/try-runtime",
+	"pallet-cord-node-authorization/try-runtime",
 	"pallet-network-membership/try-runtime",
 	"pallet-runtime-upgrade/try-runtime",
 	"pallet-remark/try-runtime",
@@ -278,7 +300,7 @@ try-runtime = [
 	"identifier/try-runtime",
 	"frame-try-runtime/try-runtime",
 	"pallet-config/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]
 
 
@@ -288,4 +310,6 @@ fast-runtime = []
 # A feature that should be enabled when the runtime should be build for on-chain
 # deployment. This will disable stuff that shouldn't be part of the on-chain wasm
 # to make it smaller like logging for example.
-on-chain-release-build = ["sp-api/disable-logging"]
+on-chain-release-build = ["metadata-hash", "sp-api/disable-logging"]
+
+metadata-hash = ["substrate-wasm-builder/metadata-hash"]

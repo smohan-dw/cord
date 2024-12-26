@@ -27,7 +27,7 @@ pub use pallet::*;
 use sp_staking::SessionIndex;
 use sp_std::{vec, vec::Vec};
 
-#[cfg(any(feature = "mock", test))]
+#[cfg(test)]
 pub mod mock;
 
 #[cfg(test)]
