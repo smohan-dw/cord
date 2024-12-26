@@ -180,6 +180,33 @@ scale-info = { features = [
 ], workspace = true, default-features = true }
 sp-keyring = { workspace = true }
 pretty_assertions.workspace = true
+env_logger = { workspace = true }
+assert_matches = { workspace = true }
+serial_test = { workspace = true }
+sc-keystore = { workspace = true }
+sc-client-db = { workspace = true }
+sc-consensus = { workspace = true }
+sc-consensus-babe = { workspace = true }
+sc-consensus-epochs = { workspace = true }
+cord-service-test = { workspace = true }
+sp-tracing = { workspace = true }
+sp-blockchain = { workspace = true }
+sp-crypto-hashing = { workspace = true }
+cord-cli-test-utils = { workspace = true }
+frame-support = { workspace = true }
+cord-node-testing = { workspace = true }
+pallet-balances = { workspace = true }
+sp-application-crypto = { workspace = true }
+pallet-root-testing = { workspace = true }
+pallet-transaction-payment = { workspace = true }
+pallet-timestamp = { workspace = true }
+pallet-sudo = { workspace = true }
+sp-consensus-babe = { workspace = true }
+sp-externalities = { workspace = true }
+sp-runtime = { workspace = true }
+sp-trie = { workspace = true }
+sp-state-machine = { workspace = true }
+
 
 [build-dependencies]
 clap = { workspace = true, optional = true }
