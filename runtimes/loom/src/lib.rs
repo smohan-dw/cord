@@ -1102,7 +1102,7 @@ mod runtime {
 	#[runtime::pallet_index(7)]
 	pub type Balances = pallet_balances::Pallet<Runtime>;
 
-	#[runtime::pallet_index(9)]
+	#[runtime::pallet_index(8)]
 	pub type TransactionPayment = pallet_transaction_payment::Pallet<Runtime>;
 
 	#[runtime::pallet_index(12)]
@@ -1202,9 +1202,6 @@ mod runtime {
 
 	#[runtime::pallet_index(77)]
 	pub type NetworkScore = pallet_network_score::Pallet<Runtime>;
-
-	// #[runtime::pallet_index(78)]
-	// pub type AssetConversion = pallet_asset_conversion::Pallet<Runtime>;
 
 	#[runtime::pallet_index(80)]
 	pub type NetworkParameters = pallet_config::Pallet<Runtime>;

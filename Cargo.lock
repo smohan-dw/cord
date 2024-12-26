@@ -1976,6 +1976,7 @@ dependencies = [
  "log",
  "pallet-asset-conversion",
  "pallet-asset-conversion-ops",
+ "pallet-asset-conversion-tx-payment",
  "pallet-asset-rate",
  "pallet-asset-tx-payment",
  "pallet-assets",
@@ -1994,6 +1995,7 @@ dependencies = [
  "pallet-contracts-uapi",
  "pallet-election-provider-multi-phase",
  "pallet-election-provider-support-benchmarking",
+ "pallet-fast-unstake",
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
@@ -6702,6 +6704,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pallet-asset-conversion-tx-payment"
+version = "20.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.16.3#c9211527a90f053f9a58be4c1d6001ccfefbfd5f"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-asset-conversion",
+ "pallet-transaction-payment",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+]
+
+[[package]]
 name = "pallet-asset-rate"
 version = "17.0.0"
 source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.16.3#c9211527a90f053f9a58be4c1d6001ccfefbfd5f"
@@ -6773,7 +6789,6 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "sp-api",
- "sp-std",
 ]
 
 [[package]]
@@ -7250,6 +7265,24 @@ dependencies = [
  "sp-keystore",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-fast-unstake"
+version = "37.0.0"
+source = "git+https://github.com/dhiway/substrate-sdk?branch=release-sdk-v1.16.3#c9211527a90f053f9a58be4c1d6001ccfefbfd5f"
+dependencies = [
+ "docify",
+ "frame-benchmarking",
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-io",
+ "sp-runtime",
+ "sp-staking",
 ]
 
 [[package]]

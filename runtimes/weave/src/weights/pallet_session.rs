@@ -19,42 +19,43 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
+#![allow(missing_docs)]
 
 use frame_support::{traits::Get, weights::Weight};
-use sp_std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Weight functions for `pallet_session`.
 pub struct WeightInfo<T>(PhantomData<T>);
 impl<T: frame_system::Config> pallet_session::WeightInfo for WeightInfo<T> {
-	/// Storage: Staking Ledger (r:1 w:0)
-	/// Proof: Staking Ledger (max_values: None, max_size: Some(1091), added: 3566, mode: MaxEncodedLen)
-	/// Storage: Session NextKeys (r:1 w:1)
-	/// Proof Skipped: Session NextKeys (max_values: None, max_size: None, mode: Measured)
-	/// Storage: Session KeyOwner (r:6 w:6)
-	/// Proof Skipped: Session KeyOwner (max_values: None, max_size: None, mode: Measured)
+	/// Storage: `Staking::Ledger` (r:1 w:0)
+	/// Proof: `Staking::Ledger` (`max_values`: None, `max_size`: Some(1091), added: 3566, mode: `MaxEncodedLen`)
+	/// Storage: `Session::NextKeys` (r:1 w:1)
+	/// Proof: `Session::NextKeys` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Session::KeyOwner` (r:6 w:6)
+	/// Proof: `Session::KeyOwner` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	fn set_keys() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1887`
-		//  Estimated: `27635`
-		// Minimum execution time: 52_350_000 picoseconds.
-		Weight::from_parts(53_422_000, 0)
-			.saturating_add(Weight::from_parts(0, 27635))
+		//  Measured:  `2111`
+		//  Estimated: `17951`
+		// Minimum execution time: 58_610_000 picoseconds.
+		Weight::from_parts(59_801_000, 0)
+			.saturating_add(Weight::from_parts(0, 17951))
 			.saturating_add(T::DbWeight::get().reads(8))
 			.saturating_add(T::DbWeight::get().writes(7))
 	}
-	/// Storage: Staking Ledger (r:1 w:0)
-	/// Proof: Staking Ledger (max_values: None, max_size: Some(1091), added: 3566, mode: MaxEncodedLen)
-	/// Storage: Session NextKeys (r:1 w:1)
-	/// Proof Skipped: Session NextKeys (max_values: None, max_size: None, mode: Measured)
-	/// Storage: Session KeyOwner (r:0 w:6)
-	/// Proof Skipped: Session KeyOwner (max_values: None, max_size: None, mode: Measured)
+	/// Storage: `Staking::Ledger` (r:1 w:0)
+	/// Proof: `Staking::Ledger` (`max_values`: None, `max_size`: Some(1091), added: 3566, mode: `MaxEncodedLen`)
+	/// Storage: `Session::NextKeys` (r:1 w:1)
+	/// Proof: `Session::NextKeys` (`max_values`: None, `max_size`: None, mode: `Measured`)
+	/// Storage: `Session::KeyOwner` (r:0 w:6)
+	/// Proof: `Session::KeyOwner` (`max_values`: None, `max_size`: None, mode: `Measured`)
 	fn purge_keys() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `1751`
-		//  Estimated: `11523`
-		// Minimum execution time: 36_833_000 picoseconds.
-		Weight::from_parts(37_834_000, 0)
-			.saturating_add(Weight::from_parts(0, 11523))
+		//  Measured:  `1911`
+		//  Estimated: `5376`
+		// Minimum execution time: 41_440_000 picoseconds.
+		Weight::from_parts(42_101_000, 0)
+			.saturating_add(Weight::from_parts(0, 5376))
 			.saturating_add(T::DbWeight::get().reads(2))
 			.saturating_add(T::DbWeight::get().writes(7))
 	}
