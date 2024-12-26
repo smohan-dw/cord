@@ -841,7 +841,7 @@ impl pallet_asset_rate::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type WeightInfo = weights::pallet_asset_rate::WeightInfo<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
-	type BenchmarkHelper = AssetRateArguments;
+	type BenchmarkHelper = ();
 }
 
 parameter_types! {
