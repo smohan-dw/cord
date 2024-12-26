@@ -19,9 +19,10 @@
 #![cfg_attr(rustfmt, rustfmt_skip)]
 #![allow(unused_parens)]
 #![allow(unused_imports)]
+#![allow(missing_docs)]
 
 use frame_support::{traits::Get, weights::Weight};
-use sp_std::marker::PhantomData;
+use core::marker::PhantomData;
 
 /// Weight functions for `frame_benchmarking::baseline`.
 pub struct WeightInfo<T>(PhantomData<T>);
@@ -31,8 +32,8 @@ impl<T: frame_system::Config> frame_benchmarking::baseline::WeightInfo for Weigh
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 158_000 picoseconds.
-		Weight::from_parts(190_632, 0)
+		// Minimum execution time: 150_000 picoseconds.
+		Weight::from_parts(191_138, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `i` is `[0, 1000000]`.
@@ -40,8 +41,8 @@ impl<T: frame_system::Config> frame_benchmarking::baseline::WeightInfo for Weigh
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 149_000 picoseconds.
-		Weight::from_parts(183_147, 0)
+		// Minimum execution time: 150_000 picoseconds.
+		Weight::from_parts(191_134, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `i` is `[0, 1000000]`.
@@ -49,8 +50,8 @@ impl<T: frame_system::Config> frame_benchmarking::baseline::WeightInfo for Weigh
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 155_000 picoseconds.
-		Weight::from_parts(184_117, 0)
+		// Minimum execution time: 150_000 picoseconds.
+		Weight::from_parts(186_908, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `i` is `[0, 1000000]`.
@@ -58,16 +59,16 @@ impl<T: frame_system::Config> frame_benchmarking::baseline::WeightInfo for Weigh
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 147_000 picoseconds.
-		Weight::from_parts(184_827, 0)
+		// Minimum execution time: 150_000 picoseconds.
+		Weight::from_parts(187_042, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	fn hashing() -> Weight {
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 19_094_522_000 picoseconds.
-		Weight::from_parts(19_201_969_000, 0)
+		// Minimum execution time: 27_800_272_000 picoseconds.
+		Weight::from_parts(27_969_793_000, 0)
 			.saturating_add(Weight::from_parts(0, 0))
 	}
 	/// The range of component `i` is `[0, 100]`.
@@ -75,10 +76,10 @@ impl<T: frame_system::Config> frame_benchmarking::baseline::WeightInfo for Weigh
 		// Proof Size summary in bytes:
 		//  Measured:  `0`
 		//  Estimated: `0`
-		// Minimum execution time: 183_000 picoseconds.
-		Weight::from_parts(208_000, 0)
+		// Minimum execution time: 160_000 picoseconds.
+		Weight::from_parts(483_074, 0)
 			.saturating_add(Weight::from_parts(0, 0))
-			// Standard Error: 15_974
-			.saturating_add(Weight::from_parts(47_488_580, 0).saturating_mul(i.into()))
+			// Standard Error: 2_554
+			.saturating_add(Weight::from_parts(48_743_564, 0).saturating_mul(i.into()))
 	}
 }

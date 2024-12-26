@@ -963,7 +963,7 @@ mod runtime {
 	#[runtime::pallet_index(7)]
 	pub type Balances = pallet_balances::Pallet<Runtime>;
 
-	#[runtime::pallet_index(9)]
+	#[runtime::pallet_index(8)]
 	pub type TransactionPayment = pallet_transaction_payment::Pallet<Runtime>;
 
 	#[runtime::pallet_index(12)]
