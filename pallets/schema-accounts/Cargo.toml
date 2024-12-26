@@ -24,7 +24,7 @@ codec = { features = ["derive"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 cord-primitives = { workspace = true }
 cord-utilities = { workspace = true }
-identifier = { workspace = true }
+identifier = { features = ["serde"], workspace = true }
 
 log = { workspace = true }
 
@@ -54,7 +54,7 @@ std = [
 	"sp-io/std",
 	"sp-std/std",
 	"log/std",
-	"sp-keystore?/std"
+	"sp-keystore?/std",
 ]
 mock = ["sp-core", "sp-io", "sp-keystore"]
 runtime-benchmarks = [
@@ -69,5 +69,5 @@ try-runtime = [
 	"frame-system/try-runtime",
 	"identifier/try-runtime",
 	"cord-utilities/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]

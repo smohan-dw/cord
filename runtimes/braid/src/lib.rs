@@ -20,18 +20,14 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limits.
 #![recursion_limit = "1024"]
 
+extern crate alloc;
+
 use codec::{Decode, Encode};
 use scale_info::TypeInfo;
 
-pub use cord_primitives::{AccountId, Signature};
+pub use cord_primitives::{AccountId, AccountPublic, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, DidIdentifier, Hash, Moment, Nonce};
 use cord_runtime_common::{impl_runtime_weights, prod_or_fast, BlockHashCount, BlockLength};
-pub use identifier::Ss58Identifier;
-// Can't use `FungibleAdapter` here until Treasury pallet migrates to fungibles
-// <https://github.com/paritytech/polkadot-sdk/issues/226>
-#[allow(deprecated)]
-use pallet_transaction_payment::{CurrencyAdapter, FeeDetails, RuntimeDispatchInfo};
-
 use frame_support::{
 	derive_impl,
 	genesis_builder_helper::{build_state, get_preset},
@@ -43,24 +39,32 @@ use frame_support::{
 		AsEnsureOriginWithArg, ConstBool, ConstU128, ConstU32, Contains, KeyOwnerProofSystem,
 		PrivilegeCmp, VariantCountOf,
 	},
-	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, ConstantMultiplier},
+	weights::ConstantMultiplier,
 	PalletId,
 };
 use frame_system::{EnsureRoot, EnsureSigned, EnsureSignedBy};
+pub use identifier::Ss58Identifier;
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 pub use pallet_balances::Call as BalancesCall;
-use pallet_identity::legacy::IdentityInfo;
+use pallet_cord_identity::legacy::IdentityInfo;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use pallet_session::historical as pallet_session_historical;
+use pallet_transaction_payment::{FeeDetails, FungibleAdapter, RuntimeDispatchInfo};
+use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use sp_consensus_beefy::{
+	ecdsa_crypto::{AuthorityId as BeefyId, Signature as BeefySignature},
+	mmr::MmrLeafVersion,
+};
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
+use sp_runtime::generic::Era;
 use sp_runtime::{
 	create_runtime_str, generic, impl_opaque_keys,
 	traits::{
-		AccountIdConversion, AccountIdLookup, BlakeTwo256, Block as BlockT,
-		Extrinsic as ExtrinsicT, NumberFor, OpaqueKeys, SaturatedConversion, Verify,
+		self, AccountIdConversion, BlakeTwo256, Block as BlockT, Keccak256, NumberFor, OpaqueKeys,
+		SaturatedConversion, StaticLookup, Verify,
 	},
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, Perbill, Permill,
@@ -82,10 +86,8 @@ pub use sp_runtime::BuildStorage;
 /// Constant values used within the runtime.
 use cord_braid_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 use cord_runtime_common as runtime_common;
-use runtime_common::{EverythingToAuthor, SlowAdjustingFeeUpdate};
+use runtime_common::{SlowAdjustingFeeUpdate, ToAuthor};
 
-// Weights used in the runtime.
-mod weights;
 // CORD Pallets
 pub use authority_membership;
 pub use pallet_network_membership;
@@ -93,6 +95,12 @@ pub mod benchmark;
 pub use benchmark::DummySignature;
 pub use pallet_assets_runtime_api as assets_api;
 use pallet_network_membership::RuntimeDispatchWeightInfo;
+
+// Genesis preset configurations.
+pub mod genesis_config_presets;
+
+// Weights used in the runtime.
+mod weights;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -119,17 +127,14 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_name: create_runtime_str!("braid"),
 	impl_name: create_runtime_str!("dhiway-cord"),
 	authoring_version: 0,
-	spec_version: 9400,
+	spec_version: 9500,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
 	state_version: 1,
 };
 
-/// We allow for 2 seconds of block time for computations, with maximum proof size.
-pub const MAXIMUM_BLOCK_WEIGHT: Weight =
-	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
-impl_runtime_weights!(cord_braid_runtime_constants, MAXIMUM_BLOCK_WEIGHT);
+impl_runtime_weights!(cord_braid_runtime_constants);
 
 /// The BABE epoch configuration at genesis.
 pub const BABE_GENESIS_EPOCH_CONFIG: sp_consensus_babe::BabeEpochConfiguration =
@@ -166,7 +171,7 @@ impl frame_system::Config for Runtime {
 	type Nonce = Nonce;
 	type Hash = Hash;
 	type AccountId = AccountId;
-	type Lookup = AccountIdLookup<AccountId, ()>;
+	type Lookup = Indices;
 	type Block = Block;
 	type BlockHashCount = BlockHashCount;
 	type Version = Version;
@@ -272,25 +277,22 @@ impl pallet_balances::Config for Runtime {
 	type DustRemoval = ();
 	type RuntimeEvent = RuntimeEvent;
 	type ExistentialDeposit = ExistentialDeposit;
-	type AccountStore = System;
+	type AccountStore = frame_system::Pallet<Runtime>;
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
 	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
 }
 
 parameter_types! {
-	pub const TransactionByteFee: Balance = 10 * MICRO_UNITS;
+	pub const TransactionByteFee: Balance = cord_braid_runtime_constants::fee::TRANSACTION_BYTE_FEE;
 	/// This value increases the priority of `Operational` transactions by adding
 	/// a "virtual tip" that's equal to the `OperationalFeeMultiplier * final_fee`.
 	pub const OperationalFeeMultiplier: u8 = 5;
 }
 
-// Can't use `FungibleAdapter` here until Treasury pallet migrates to fungibles
-// <https://github.com/paritytech/polkadot-sdk/issues/226>
-#[allow(deprecated)]
 impl pallet_transaction_payment::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type OnChargeTransaction = CurrencyAdapter<Balances, EverythingToAuthor<Runtime>>;
+	type OnChargeTransaction = FungibleAdapter<Balances, ToAuthor<Self>>;
 	type OperationalFeeMultiplier = OperationalFeeMultiplier;
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
@@ -298,11 +300,11 @@ impl pallet_transaction_payment::Config for Runtime {
 }
 
 parameter_types! {
-	pub const MinimumPeriod: u64 = SLOT_DURATION / 2;
+	pub const MinimumPeriod: Moment = SLOT_DURATION / 2;
 }
 
 impl pallet_timestamp::Config for Runtime {
-	type Moment = u64;
+	type Moment = Moment;
 	type OnTimestampSet = Babe;
 	type MinimumPeriod = MinimumPeriod;
 	type WeightInfo = weights::pallet_timestamp::WeightInfo<Runtime>;
@@ -315,17 +317,26 @@ impl pallet_authorship::Config for Runtime {
 
 impl_opaque_keys! {
 	pub struct SessionKeys {
-		pub grandpa: Grandpa,
 		pub babe: Babe,
+		pub grandpa: Grandpa,
 		pub im_online: ImOnline,
 		pub authority_discovery: AuthorityDiscovery,
+		pub beefy: Beefy,
+	}
+}
+
+/// Special `ValidatorIdOf` implementation that is just returning the input as result.
+pub struct ValidatorIdOf;
+impl sp_runtime::traits::Convert<AccountId, Option<AccountId>> for ValidatorIdOf {
+	fn convert(a: AccountId) -> Option<AccountId> {
+		Some(a)
 	}
 }
 
 impl pallet_session::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type ValidatorId = AccountId;
-	type ValidatorIdOf = sp_runtime::traits::ConvertInto;
+	type ValidatorIdOf = ValidatorIdOf;
 	type ShouldEndSession = Babe;
 	type NextSessionRotation = Babe;
 	type SessionManager = pallet_session::historical::NoteHistoricalRoot<Self, AuthorityMembership>;
@@ -347,11 +358,11 @@ impl pallet_session::historical::Config for Runtime {
 }
 
 parameter_types! {
-	pub const AssetDeposit: Balance = 10 * MILLI_UNITS;
-	pub const ApprovalDeposit: Balance = 5 * MILLI_UNITS;
+	pub const AssetDeposit: Balance = 10 * UNITS;
+	pub const ApprovalDeposit: Balance = CENTI;
 	pub const StringLimit: u32 = 50;
-	pub const MetadataDepositBase: Balance = 10 * MILLI_UNITS;
-	pub const MetadataDepositPerByte: Balance = 1 * MICRO_UNITS;
+	pub const MetadataDepositBase: Balance = 10 * MILLI;
+	pub const MetadataDepositPerByte: Balance = 10 * MICRO;
 }
 
 impl pallet_assets::Config<Instance1> for Runtime {
@@ -453,7 +464,7 @@ parameter_types! {
 	pub const MaxAdditionalFields: u32 = 20;
 }
 
-impl pallet_identity::Config for Runtime {
+impl pallet_cord_identity::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxSubAccounts = MaxSubAccounts;
 	type IdentityInformation = IdentityInfo<MaxAdditionalFields>;
@@ -465,7 +476,7 @@ impl pallet_identity::Config for Runtime {
 	type PendingUsernameExpiration = ConstU32<{ 7 * DAYS }>;
 	type MaxSuffixLength = ConstU32<7>;
 	type MaxUsernameLength = ConstU32<32>;
-	type WeightInfo = pallet_identity::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_cord_identity::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -479,7 +490,7 @@ impl pallet_entries::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_offences::Config for Runtime {
+impl pallet_cord_offences::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
 	type OnOffenceHandler = AuthorityMembership;
@@ -535,42 +546,38 @@ where
 		public: <Signature as Verify>::Signer,
 		account: AccountId,
 		nonce: Nonce,
-	) -> Option<(RuntimeCall, <UncheckedExtrinsic as ExtrinsicT>::SignaturePayload)> {
-		use sp_runtime::traits::StaticLookup;
+	) -> Option<(RuntimeCall, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
 		let tip = 0;
-
 		// take the biggest period possible.
 		let period =
 			BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
-
 		let current_block = System::block_number()
 			.saturated_into::<u64>()
 			// The `System::block_number` is initialized with `n+1`,
 			// so the actual block number is `n`.
 			.saturating_sub(1);
-		let extra: SignedExtra = (
+		let era = Era::mortal(period, current_block);
+		let tx_ext = (
 			pallet_network_membership::CheckNetworkMembership::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
 			frame_system::CheckTxVersion::<Runtime>::new(),
 			frame_system::CheckGenesis::<Runtime>::new(),
-			frame_system::CheckMortality::<Runtime>::from(generic::Era::mortal(
-				period,
-				current_block,
-			)),
+			frame_system::CheckMortality::<Runtime>::from(era),
 			frame_system::CheckNonce::<Runtime>::from(nonce),
 			frame_system::CheckWeight::<Runtime>::new(),
 			pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
+			frame_metadata_hash_extension::CheckMetadataHash::new(false),
 		);
-		let raw_payload = SignedPayload::new(call, extra)
+		let raw_payload = SignedPayload::new(call, tx_ext)
 			.map_err(|e| {
 				log::warn!("Unable to create signed payload: {:?}", e);
 			})
 			.ok()?;
 		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
-		let (call, extra, _) = raw_payload.deconstruct();
-		let address = <Runtime as frame_system::Config>::Lookup::unlookup(account);
-		Some((call, (address, signature, extra)))
+		let address = Indices::unlookup(account);
+		let (call, tx_ext, _) = raw_payload.deconstruct();
+		Some((call, (address, signature, tx_ext)))
 	}
 }
 
@@ -622,13 +629,36 @@ impl authority_membership::Config for Runtime {
 	type AuthorityMembershipOrigin = EnsureRoot<AccountId>;
 }
 
+impl pallet_mmr::Config for Runtime {
+	const INDEXING_PREFIX: &'static [u8] = b"mmr";
+	type Hashing = Keccak256;
+	type LeafData = pallet_mmr::ParentNumberAndHash<Self>;
+	type OnNewRoot = pallet_beefy_mmr::DepositBeefyDigest<Runtime>;
+	type BlockHashProvider = pallet_mmr::DefaultBlockHashProvider<Runtime>;
+	type WeightInfo = ();
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
+}
+
+parameter_types! {
+	pub LeafVersion: MmrLeafVersion = MmrLeafVersion::new(0, 0);
+}
+
+impl pallet_beefy_mmr::Config for Runtime {
+	type LeafVersion = LeafVersion;
+	type BeefyAuthorityToMerkleLeaf = pallet_beefy_mmr::BeefyEcdsaToEthereum;
+	type LeafExtra = Vec<u8>;
+	type BeefyDataProvider = ();
+	type WeightInfo = ();
+}
+
 parameter_types! {
 	pub const MaxWellKnownNodes: u32 = 1_000;
 	pub const MaxPeerIdLength: u32 = 128;
 	pub const MaxNodeIdLength: u32 = 53;
 }
 
-impl pallet_node_authorization::Config for Runtime {
+impl pallet_cord_node_authorization::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type MaxWellKnownNodes = MaxWellKnownNodes;
 	type MaxPeerIdLength = MaxPeerIdLength;
@@ -775,11 +805,11 @@ parameter_types! {
 	pub const MaxRemoveEntries: u16 = 1_000;
 }
 
-impl pallet_statement::Config for Runtime {
+impl pallet_cord_statement::Config for Runtime {
 	type EnsureOrigin = pallet_did::EnsureDidOrigin<DidIdentifier, AccountId>;
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = weights::pallet_statement::WeightInfo<Runtime>;
+	type WeightInfo = weights::pallet_cord_statement::WeightInfo<Runtime>;
 	type MaxDigestsPerBatch = MaxDigestsPerBatch;
 	type MaxRemoveEntries = MaxRemoveEntries;
 }
@@ -807,6 +837,9 @@ impl pallet_network_score::Config for Runtime {
 
 impl pallet_config::Config for Runtime {}
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
+impl pallet_root_testing::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+}
 
 pub enum AllowBalancesCall {}
 
@@ -868,8 +901,30 @@ impl pallet_contracts::Config for Runtime {
 	type InstantiateOrigin = EnsureSigned<Self::AccountId>;
 }
 
+parameter_types! {
+	pub StatementCost: Balance = 1 * UNITS;
+	pub StatementByteCost: Balance = 10 * MILLI;
+	pub const MinAllowedStatements: u32 = 4;
+	pub const MaxAllowedStatements: u32 = 10;
+	pub const MinAllowedBytes: u32 = 1024;
+	pub const MaxAllowedBytes: u32 = 4096;
+}
+
+impl pallet_statement::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type StatementCost = StatementCost;
+	type ByteCost = StatementByteCost;
+	type MinAllowedStatements = MinAllowedStatements;
+	type MaxAllowedStatements = MaxAllowedStatements;
+	type MinAllowedBytes = MinAllowedBytes;
+	type MaxAllowedBytes = MaxAllowedBytes;
+}
+
 #[frame_support::runtime]
 mod runtime {
+	use super::*;
+
 	#[runtime::runtime]
 	#[runtime::derive(
 		RuntimeCall,
@@ -885,121 +940,138 @@ mod runtime {
 	pub struct Runtime;
 
 	#[runtime::pallet_index(0)]
-	pub type System = frame_system;
+	pub type System = frame_system::Pallet<Runtime>;
 
 	#[runtime::pallet_index(1)]
-	pub type Utility = pallet_utility;
+	pub type Utility = pallet_utility::Pallet<Runtime>;
 
 	#[runtime::pallet_index(2)]
-	pub type Babe = pallet_babe;
+	pub type Babe = pallet_babe::Pallet<Runtime>;
 
 	#[runtime::pallet_index(3)]
-	pub type Timestamp = pallet_timestamp;
+	pub type Timestamp = pallet_timestamp::Pallet<Runtime>;
 
 	#[runtime::pallet_index(4)]
-	pub type AuthorityMembership = authority_membership;
+	pub type AuthorityMembership = authority_membership::Pallet<Runtime>;
 
 	#[runtime::pallet_index(5)]
-	pub type Authorship = pallet_authorship;
+	pub type Authorship = pallet_authorship::Pallet<Runtime>;
 
 	#[runtime::pallet_index(6)]
-	pub type Indices = pallet_indices;
+	pub type Indices = pallet_indices::Pallet<Runtime>;
 
 	#[runtime::pallet_index(7)]
-	pub type Balances = pallet_balances;
-
-	#[runtime::pallet_index(8)]
-	pub type Session = pallet_session;
+	pub type Balances = pallet_balances::Pallet<Runtime>;
 
 	#[runtime::pallet_index(9)]
-	pub type TransactionPayment = pallet_transaction_payment;
+	pub type TransactionPayment = pallet_transaction_payment::Pallet<Runtime>;
 
 	#[runtime::pallet_index(12)]
-	pub type RandomnessCollectiveFlip = pallet_insecure_randomness_collective_flip;
+	pub type Session = pallet_session::Pallet<Runtime>;
+
+	#[runtime::pallet_index(20)]
+	pub type Grandpa = pallet_grandpa::Pallet<Runtime>;
+
+	#[runtime::pallet_index(23)]
+	pub type ImOnline = pallet_im_online::Pallet<Runtime>;
+
+	#[runtime::pallet_index(24)]
+	pub type AuthorityDiscovery = pallet_authority_discovery::Pallet<Runtime>;
 
 	#[runtime::pallet_index(25)]
-	pub type Grandpa = pallet_grandpa;
+	pub type Offences = pallet_cord_offences::Pallet<Runtime>;
 
 	#[runtime::pallet_index(26)]
-	pub type ImOnline = pallet_im_online;
+	pub type Historical = pallet_session_historical::Pallet<Runtime>;
 
 	#[runtime::pallet_index(27)]
-	pub type AuthorityDiscovery = pallet_authority_discovery;
+	pub type RandomnessCollectiveFlip = pallet_insecure_randomness_collective_flip::Pallet<Runtime>;
 
 	#[runtime::pallet_index(28)]
-	pub type Offences = pallet_offences;
-
-	#[runtime::pallet_index(29)]
-	pub type Historical = pallet_session_historical;
+	pub type Identity = pallet_cord_identity::Pallet<Runtime>;
 
 	#[runtime::pallet_index(30)]
-	pub type Identity = pallet_identity;
+	pub type Scheduler = pallet_scheduler::Pallet<Runtime>;
 
-	#[runtime::pallet_index(31)]
-	pub type Scheduler = pallet_scheduler;
-
-	#[runtime::pallet_index(33)]
-	pub type Multisig = pallet_multisig;
-
-	#[runtime::pallet_index(34)]
-	pub type NodeAuthorization = pallet_node_authorization;
+	#[runtime::pallet_index(32)]
+	pub type Multisig = pallet_multisig::Pallet<Runtime>;
 
 	#[runtime::pallet_index(35)]
-	pub type RuntimeUpgrade = pallet_runtime_upgrade;
+	pub type Beefy = pallet_beefy::Pallet<Runtime>;
 
+	// MMR leaf construction must be after session in order to have a leaf's next_auth_set
+	// refer to block<N>. See issue polkadot-fellows/runtimes#160 for details.
 	#[runtime::pallet_index(36)]
-	pub type Assets = pallet_assets<Instance1>;
+	pub type Mmr = pallet_mmr::Pallet<Runtime>;
 
 	#[runtime::pallet_index(37)]
-	pub type PoolAssets = pallet_assets<Instance2>;
+	pub type MmrLeaf = pallet_beefy_mmr::Pallet<Runtime>;
 
-	#[runtime::pallet_index(38)]
-	pub type Contracts = pallet_contracts;
+	#[runtime::pallet_index(40)]
+	pub type Assets = pallet_assets::Pallet<Runtime, Instance1>;
 
-	#[runtime::pallet_index(50)]
-	pub type Identifier = identifier;
+	#[runtime::pallet_index(41)]
+	pub type PoolAssets = pallet_assets::Pallet<Runtime, Instance2>;
 
-	#[runtime::pallet_index(51)]
-	pub type NetworkMembership = pallet_network_membership;
+	#[runtime::pallet_index(42)]
+	pub type AssetConversion = pallet_asset_conversion::Pallet<Runtime>;
 
-	#[runtime::pallet_index(52)]
-	pub type Did = pallet_did;
+	#[runtime::pallet_index(45)]
+	pub type Statement = pallet_statement::Pallet<Runtime>;
 
-	#[runtime::pallet_index(53)]
-	pub type Schema = pallet_schema;
+	#[runtime::pallet_index(69)]
+	pub type NodeAuthorization = pallet_cord_node_authorization::Pallet<Runtime>;
 
-	#[runtime::pallet_index(54)]
-	pub type ChainSpace = pallet_chain_space;
+	#[runtime::pallet_index(70)]
+	pub type Identifier = identifier::Pallet<Runtime>;
 
-	#[runtime::pallet_index(55)]
-	pub type Statement = pallet_statement;
+	#[runtime::pallet_index(71)]
+	pub type NetworkMembership = pallet_network_membership::Pallet<Runtime>;
 
-	#[runtime::pallet_index(56)]
-	pub type DidName = pallet_did_name;
+	#[runtime::pallet_index(72)]
+	pub type Did = pallet_did::Pallet<Runtime>;
 
-	#[runtime::pallet_index(57)]
-	pub type NetworkScore = pallet_network_score;
+	#[runtime::pallet_index(73)]
+	pub type Schema = pallet_schema::Pallet<Runtime>;
 
-	#[runtime::pallet_index(58)]
-	pub type AssetConversion = pallet_asset_conversion;
+	#[runtime::pallet_index(74)]
+	pub type ChainSpace = pallet_chain_space::Pallet<Runtime>;
 
-	#[runtime::pallet_index(59)]
-	pub type Remark = pallet_remark;
+	#[runtime::pallet_index(75)]
+	pub type CordStatement = pallet_cord_statement::Pallet<Runtime>;
 
-	#[runtime::pallet_index(60)]
-	pub type NetworkParameters = pallet_config;
+	#[runtime::pallet_index(76)]
+	pub type DidName = pallet_did_name::Pallet<Runtime>;
 
-	#[runtime::pallet_index(61)]
-	pub type Registries = pallet_registries;
+	#[runtime::pallet_index(77)]
+	pub type NetworkScore = pallet_network_score::Pallet<Runtime>;
 
-	#[runtime::pallet_index(62)]
-	pub type Entries = pallet_entries;
+	#[runtime::pallet_index(80)]
+	pub type NetworkParameters = pallet_config::Pallet<Runtime>;
 
-	#[runtime::pallet_index(63)]
-	pub type SchemaAccounts = pallet_schema_accounts;
+	#[runtime::pallet_index(81)]
+	pub type Registries = pallet_registries::Pallet<Runtime>;
+
+	#[runtime::pallet_index(82)]
+	pub type Entries = pallet_entries::Pallet<Runtime>;
+
+	#[runtime::pallet_index(83)]
+	pub type SchemaAccounts = pallet_schema_accounts::Pallet<Runtime>;
+
+	#[runtime::pallet_index(101)]
+	pub type Contracts = pallet_contracts::Pallet<Runtime>;
+
+	#[runtime::pallet_index(102)]
+	pub type Remark = pallet_remark::Pallet<Runtime>;
+
+	#[runtime::pallet_index(103)]
+	pub type RuntimeUpgrade = pallet_runtime_upgrade::Pallet<Runtime>;
+
+	#[runtime::pallet_index(104)]
+	pub type RootTesting = pallet_root_testing::Pallet<Runtime>;
 
 	#[runtime::pallet_index(255)]
-	pub type Sudo = pallet_sudo;
+	pub type Sudo = pallet_sudo::Pallet<Runtime>;
 }
 
 #[rustfmt::skip]
@@ -1040,7 +1112,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 			RuntimeCall::Schema { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
-			RuntimeCall::Statement { .. } => {
+			RuntimeCall::CordStatement { .. } => {
 				Ok(pallet_did::DidVerificationKeyRelationship::Authentication)
 			},
 			RuntimeCall::NetworkScore { .. } => {
@@ -1101,7 +1173,7 @@ impl pallet_did::DeriveDidCallAuthorizationVerificationKeyRelationship for Runti
 }
 
 /// The address format for describing accounts.
-pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
+pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
@@ -1121,13 +1193,24 @@ pub type SignedExtra = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
+	frame_metadata_hash_extension::CheckMetadataHash<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
 	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+/// The payload being signed in transactions.
+pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
+
+pub type Migrations = migrations::Unreleased;
+/// The runtime migrations per release.
+#[allow(deprecated, missing_docs)]
+pub mod migrations {
+	/// Unreleased migrations. Add new ones here:
+	pub type Unreleased = ();
+}
 
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
@@ -1136,27 +1219,55 @@ pub type Executive = frame_executive::Executive<
 	frame_system::ChainContext<Runtime>,
 	Runtime,
 	AllPalletsWithSystem,
+	Migrations,
 >;
-/// The payload being signed in transactions.
-pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
 
 type EventRecord = frame_system::EventRecord<
 	<Runtime as frame_system::Config>::RuntimeEvent,
 	<Runtime as frame_system::Config>::Hash,
 >;
 
+parameter_types! {
+	pub BeefySetIdSessionEntries: u32 = BondingDuration::get() * SessionsPerEra::get();
+}
+
+impl pallet_beefy::Config for Runtime {
+	type BeefyId = BeefyId;
+	type MaxAuthorities = MaxAuthorities;
+	type MaxNominators = ConstU32<0>;
+	type MaxSetIdSessionEntries = BeefySetIdSessionEntries;
+	type OnNewValidatorSet = MmrLeaf;
+	type AncestryHelper = MmrLeaf;
+	type WeightInfo = ();
+	type KeyOwnerProof = <Historical as KeyOwnerProofSystem<(KeyTypeId, BeefyId)>>::Proof;
+	type EquivocationReportSystem =
+		pallet_beefy::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
+}
+
+/// MMR helper types.
+mod mmr {
+	use super::*;
+	pub use pallet_mmr::primitives::*;
+
+	pub type Leaf = <<Runtime as pallet_mmr::Config>::LeafData as LeafDataProvider>::LeafData;
+	pub type Hash = <Hashing as sp_runtime::traits::Hash>::Output;
+	pub type Hashing = <Runtime as pallet_mmr::Config>::Hashing;
+}
+
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
 	frame_benchmarking::define_benchmarks!(
 		[frame_benchmarking, BaselineBench::<Runtime>]
 		[pallet_babe, Babe]
+		[pallet_beefy_mmr, MmrLeaf]
 		[pallet_balances, Balances]
 		[pallet_contracts, Contracts]
 		[pallet_grandpa, Grandpa]
-		[pallet_identity, Identity]
+		[pallet_cord_identity, Identity]
 		[pallet_session, SessionBench::<Runtime>]
 		[pallet_im_online, ImOnline]
 		[pallet_indices, Indices]
+		[pallet_mmr, Mmr]
 		[pallet_multisig, Multisig]
 		[pallet_remark, Remark]
 		[pallet_scheduler, Scheduler]
@@ -1164,7 +1275,7 @@ mod benches {
 		[pallet_timestamp, Timestamp]
 		[pallet_utility, Utility]
 		[pallet_schema, Schema]
-		[pallet_statement, Statement]
+		[pallet_cord_statement, Statement]
 		[pallet_chain_space, ChainSpace]
 		[pallet_did, Did]
 		[pallet_did_name, DidName]
@@ -1174,7 +1285,7 @@ mod benches {
 	);
 }
 
-sp_api::impl_runtime_apis! {
+impl_runtime_apis! {
 	impl sp_api::Core<Block> for Runtime {
 		fn version() -> RuntimeVersion {
 			VERSION
@@ -1228,6 +1339,15 @@ sp_api::impl_runtime_apis! {
 			block_hash: <Block as BlockT>::Hash,
 		) -> TransactionValidity {
 			Executive::validate_transaction(source, tx, block_hash)
+		}
+	}
+
+	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {
+		fn validate_statement(
+			source: sp_statement_store::runtime_api::StatementSource,
+			statement: sp_statement_store::Statement,
+		) -> Result<sp_statement_store::runtime_api::ValidStatement, sp_statement_store::runtime_api::InvalidStatement> {
+			Statement::validate_statement(source, statement)
 		}
 	}
 
@@ -1517,6 +1637,128 @@ sp_api::impl_runtime_apis! {
 		}
 	}
 
+	#[api_version(5)]
+	impl sp_consensus_beefy::BeefyApi<Block, BeefyId> for Runtime {
+		fn beefy_genesis() -> Option<BlockNumber> {
+			pallet_beefy::GenesisBlock::<Runtime>::get()
+		}
+
+		fn validator_set() -> Option<sp_consensus_beefy::ValidatorSet<BeefyId>> {
+			Beefy::validator_set()
+		}
+
+		fn submit_report_double_voting_unsigned_extrinsic(
+			equivocation_proof: sp_consensus_beefy::DoubleVotingProof<
+				BlockNumber,
+				BeefyId,
+				BeefySignature,
+			>,
+			key_owner_proof: sp_consensus_beefy::OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			let key_owner_proof = key_owner_proof.decode()?;
+
+			Beefy::submit_unsigned_double_voting_report(
+				equivocation_proof,
+				key_owner_proof,
+			)
+		}
+
+		fn submit_report_fork_voting_unsigned_extrinsic(
+			equivocation_proof:
+				sp_consensus_beefy::ForkVotingProof<
+					<Block as BlockT>::Header,
+					BeefyId,
+					sp_runtime::OpaqueValue
+				>,
+			key_owner_proof: sp_consensus_beefy::OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			Beefy::submit_unsigned_fork_voting_report(
+				equivocation_proof.try_into()?,
+				key_owner_proof.decode()?,
+			)
+		}
+
+		fn submit_report_future_block_voting_unsigned_extrinsic(
+			equivocation_proof: sp_consensus_beefy::FutureBlockVotingProof<BlockNumber, BeefyId>,
+			key_owner_proof: sp_consensus_beefy::OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			Beefy::submit_unsigned_future_block_voting_report(
+				equivocation_proof,
+				key_owner_proof.decode()?,
+			)
+		}
+
+		fn generate_key_ownership_proof(
+			_set_id: sp_consensus_beefy::ValidatorSetId,
+			authority_id: BeefyId,
+		) -> Option<sp_consensus_beefy::OpaqueKeyOwnershipProof> {
+			Historical::prove((sp_consensus_beefy::KEY_TYPE, authority_id))
+				.map(|p| p.encode())
+				.map(sp_consensus_beefy::OpaqueKeyOwnershipProof::new)
+		}
+
+		fn generate_ancestry_proof(
+			prev_block_number: BlockNumber,
+			best_known_block_number: Option<BlockNumber>,
+		) -> Option<sp_runtime::OpaqueValue> {
+			use sp_consensus_beefy::AncestryHelper;
+
+			MmrLeaf::generate_proof(prev_block_number, best_known_block_number)
+				.map(|p| p.encode())
+				.map(sp_runtime::OpaqueValue::new)
+		}
+	}
+
+	impl pallet_mmr::primitives::MmrApi<
+		Block,
+		mmr::Hash,
+		BlockNumber,
+	> for Runtime {
+		fn mmr_root() -> Result<mmr::Hash, mmr::Error> {
+			Ok(pallet_mmr::RootHash::<Runtime>::get())
+		}
+
+		fn mmr_leaf_count() -> Result<mmr::LeafIndex, mmr::Error> {
+			Ok(pallet_mmr::NumberOfLeaves::<Runtime>::get())
+		}
+
+		fn generate_proof(
+			block_numbers: Vec<BlockNumber>,
+			best_known_block_number: Option<BlockNumber>,
+		) -> Result<(Vec<mmr::EncodableOpaqueLeaf>, mmr::LeafProof<mmr::Hash>), mmr::Error> {
+			Mmr::generate_proof(block_numbers, best_known_block_number).map(
+				|(leaves, proof)| {
+					(
+						leaves
+							.into_iter()
+							.map(|leaf| mmr::EncodableOpaqueLeaf::from_leaf(&leaf))
+							.collect(),
+						proof,
+					)
+				},
+			)
+		}
+
+		fn verify_proof(leaves: Vec<mmr::EncodableOpaqueLeaf>, proof: mmr::LeafProof<mmr::Hash>)
+			-> Result<(), mmr::Error>
+		{
+			let leaves = leaves.into_iter().map(|leaf|
+				leaf.into_opaque_leaf()
+				.try_decode()
+				.ok_or(mmr::Error::Verify)).collect::<Result<Vec<mmr::Leaf>, mmr::Error>>()?;
+			Mmr::verify_leaves(leaves, proof)
+		}
+
+		fn verify_proof_stateless(
+			root: mmr::Hash,
+			leaves: Vec<mmr::EncodableOpaqueLeaf>,
+			proof: mmr::LeafProof<mmr::Hash>
+		) -> Result<(), mmr::Error> {
+			let nodes = leaves.into_iter().map(|leaf|mmr::DataOrHash::Data(leaf.into_opaque_leaf())).collect();
+			pallet_mmr::verify_leaves_proof::<mmr::Hashing, _>(root, nodes, proof)
+		}
+	}
+
 	impl sp_session::SessionKeys<Block> for Runtime {
 		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
 			SessionKeys::generate(seed)
@@ -1534,7 +1776,7 @@ sp_api::impl_runtime_apis! {
 	fn on_runtime_upgrade(checks: frame_try_runtime::UpgradeCheckSelect) -> (Weight, Weight) {
 			log::info!("try-runtime::on_runtime_upgrade cord.");
 			let weight = Executive::try_runtime_upgrade(checks).unwrap();
-			(weight, RuntimeBlockWeights::get().max_block)
+			(weight, BlockWeights::get().max_block)
 		}
 
 		fn execute_block(

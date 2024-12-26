@@ -60,8 +60,10 @@ pub use sc_service::{
 	ChainSpec, Configuration, Error as ServiceError, PruningMode, Role, TFullBackend,
 	TFullCallExecutor, TFullClient, TaskManager, TransactionPoolOptions,
 };
+use sc_statement_store::Store as StatementStore;
 pub use sp_api::{ApiRef, ConstructRuntimeApi, Core as CoreApi, ProvideRuntimeApi};
 pub use sp_consensus::{Proposal, SelectChain};
+use sp_consensus_beefy::ecdsa_crypto::AuthorityId;
 pub use sp_runtime::{
 	generic,
 	traits::{self as runtime_traits, BlakeTwo256, Block as BlockT, Header as HeaderT, NumberFor},
@@ -72,7 +74,7 @@ use sc_consensus_babe::{self, SlotProportion};
 use sc_network::{
 	event::Event, service::traits::NetworkService, NetworkBackend, NetworkEventStream,
 };
-use sc_network_sync::{strategy::warp::WarpSyncParams, SyncingService};
+use sc_network_sync::{SyncingService, WarpSyncConfig};
 pub use sp_runtime::{OpaqueExtrinsic, SaturatedConversion};
 
 #[cfg(feature = "braid-native")]
@@ -168,7 +170,7 @@ pub enum Error {
 	Consensus(#[from] sp_consensus::Error),
 
 	#[error(transparent)]
-	Prometheus(#[from] substrate_prometheus_endpoint::PrometheusError),
+	Prometheus(#[from] prometheus_endpoint::PrometheusError),
 
 	#[error(transparent)]
 	Telemetry(#[from] sc_telemetry::Error),
@@ -181,19 +183,6 @@ pub enum Error {
 	#[error("Expected at least one of braid, loom or weave runtime feature")]
 	NoRuntime,
 }
-
-/// Host functions required for runtime and  node.
-#[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions = sp_io::SubstrateHostFunctions;
-
-/// Host functions required for runtime and  node.
-#[cfg(feature = "runtime-benchmarks")]
-pub type HostFunctions =
-	(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions);
-
-/// A specialized `WasmExecutor` intended to use with CORD node. It
-/// provides all required HostFunctions.
-pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
 
 /// Identifies the variant of the chain.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -251,13 +240,26 @@ impl IdentifyVariant for Box<dyn ChainSpec> {
 	}
 }
 
+/// Host functions required for runtime and node.
+#[cfg(not(feature = "runtime-benchmarks"))]
+pub type HostFunctions =
+	(sp_io::SubstrateHostFunctions, sp_statement_store::runtime_api::HostFunctions);
+
+/// Host functions required for runtime and node.
+#[cfg(feature = "runtime-benchmarks")]
+pub type HostFunctions = (
+	sp_io::SubstrateHostFunctions,
+	sp_statement_store::runtime_api::HostFunctions,
+	frame_benchmarking::benchmarking::HostFunctions,
+);
+
+/// A specialized `WasmExecutor` intended to use across substrate node. It provides all required
+/// HostFunctions.
+pub type RuntimeExecutor = sc_executor::WasmExecutor<HostFunctions>;
+
 /// The full client type definition.
 #[cfg(feature = "full-node")]
-pub type FullClient = sc_service::TFullClient<
-	Block,
-	RuntimeApi,
-	WasmExecutor<(sp_io::SubstrateHostFunctions, frame_benchmarking::benchmarking::HostFunctions)>,
->;
+pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, RuntimeExecutor>;
 #[cfg(feature = "full-node")]
 type FullBackend = sc_service::TFullBackend<Block>;
 #[cfg(feature = "full-node")]
@@ -265,7 +267,14 @@ type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 #[cfg(feature = "full-node")]
 type FullGrandpaBlockImport =
 	sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>;
-
+#[cfg(feature = "full-node")]
+type FullBeefyBlockImport<InnerBlockImport> = sc_consensus_beefy::import::BeefyBlockImport<
+	Block,
+	FullBackend,
+	FullClient,
+	InnerBlockImport,
+	AuthorityId,
+>;
 /// The transaction pool type defintion.
 pub type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
 
@@ -283,16 +292,24 @@ pub fn new_partial(
 		sc_transaction_pool::FullPool<Block, FullClient>,
 		(
 			impl Fn(
-				cord_node_rpc::DenyUnsafe,
-				cord_node_rpc::SubscriptionTaskExecutor,
-			) -> Result<cord_node_rpc::RpcExtension, sc_service::Error>,
+				sc_rpc::SubscriptionTaskExecutor,
+			) -> Result<jsonrpsee::RpcModule<()>, sc_service::Error>,
 			(
-				sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
+				sc_consensus_babe::BabeBlockImport<
+					Block,
+					FullClient,
+					FullBeefyBlockImport<FullGrandpaBlockImport>,
+				>,
 				sc_consensus_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 				sc_consensus_babe::BabeLink<Block>,
+				sc_consensus_beefy::BeefyVoterLinks<
+					Block,
+					sp_consensus_beefy::ecdsa_crypto::AuthorityId,
+				>,
 			),
 			sc_consensus_grandpa::SharedVoterState,
 			Option<Telemetry>,
+			Arc<StatementStore>,
 		),
 	>,
 	ServiceError,
@@ -309,15 +326,16 @@ pub fn new_partial(
 		.transpose()?;
 
 	let heap_pages = config
+		.executor
 		.default_heap_pages
 		.map_or(DEFAULT_HEAP_ALLOC_STRATEGY, |h| HeapAllocStrategy::Static { extra_pages: h as _ });
 
 	let executor = WasmExecutor::builder()
-		.with_execution_method(config.wasm_method)
+		.with_execution_method(config.executor.wasm_method)
 		.with_onchain_heap_alloc_strategy(heap_pages)
 		.with_offchain_heap_alloc_strategy(heap_pages)
-		.with_max_runtime_instances(config.max_runtime_instances)
-		.with_runtime_cache_size(config.runtime_cache_size)
+		.with_max_runtime_instances(config.executor.max_runtime_instances)
+		.with_runtime_cache_size(config.executor.runtime_cache_size)
 		.build();
 
 	// let executor = sc_service::new_wasm_executor(config);
@@ -346,7 +364,7 @@ pub fn new_partial(
 		client.clone(),
 	);
 
-	#[allow(clippy::redundant_clone)]
+	// #[allow(clippy::redundant_clone)]
 	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
 		client.clone(),
 		GRANDPA_JUSTIFICATION_PERIOD,
@@ -356,9 +374,17 @@ pub fn new_partial(
 	)?;
 	let justification_import = grandpa_block_import.clone();
 
+	let (beefy_block_import, beefy_voter_links, beefy_rpc_links) =
+		sc_consensus_beefy::beefy_block_import_and_links(
+			grandpa_block_import,
+			backend.clone(),
+			client.clone(),
+			config.prometheus_registry().cloned(),
+		);
+
 	let babe_config = sc_consensus_babe::configuration(&*client)?;
 	let (block_import, babe_link) =
-		sc_consensus_babe::block_import(babe_config, grandpa_block_import, client.clone())?;
+		sc_consensus_babe::block_import(babe_config, beefy_block_import, client.clone())?;
 
 	let slot_duration = babe_link.config().slot_duration();
 	let (import_queue, babe_worker_handle) =
@@ -385,10 +411,20 @@ pub fn new_partial(
 			offchain_tx_pool_factory: OffchainTransactionPoolFactory::new(transaction_pool.clone()),
 		})?;
 
-	let import_setup = (block_import, grandpa_link, babe_link);
+	let import_setup = (block_import, grandpa_link, babe_link, beefy_voter_links);
+
+	let statement_store = sc_statement_store::Store::new_shared(
+		&config.data_path,
+		Default::default(),
+		client.clone(),
+		keystore_container.local_keystore(),
+		config.prometheus_registry(),
+		&task_manager.spawn_handle(),
+	)
+	.map_err(|e| ServiceError::Other(format!("Statement store error: {:?}", e)))?;
 
 	let (rpc_extensions_builder, rpc_setup) = {
-		let (_, grandpa_link, _) = &import_setup;
+		let (_, grandpa_link, _, _) = &import_setup;
 
 		let justification_stream = grandpa_link.justification_stream();
 		let shared_authority_set = grandpa_link.shared_authority_set().clone();
@@ -407,29 +443,42 @@ pub fn new_partial(
 		let chain_spec = config.chain_spec.cloned_box();
 
 		let rpc_backend = backend.clone();
-		let rpc_extensions_builder = move |deny_unsafe, subscription_executor| {
-			let deps = cord_node_rpc::FullDeps {
-				client: client.clone(),
-				pool: pool.clone(),
-				select_chain: select_chain.clone(),
-				chain_spec: chain_spec.cloned_box(),
-				deny_unsafe,
-				babe: cord_node_rpc::BabeDeps {
-					keystore: keystore.clone(),
-					babe_worker_handle: babe_worker_handle.clone(),
-				},
-				grandpa: cord_node_rpc::GrandpaDeps {
-					shared_voter_state: shared_voter_state.clone(),
-					shared_authority_set: shared_authority_set.clone(),
-					justification_stream: justification_stream.clone(),
-					subscription_executor,
-					finality_provider: finality_proof_provider.clone(),
-				},
-				backend: rpc_backend.clone(),
-			};
+		let rpc_statement_store = statement_store.clone();
+		let rpc_extensions_builder =
+			move |subscription_executor: cord_node_rpc::SubscriptionTaskExecutor| {
+				let deps = cord_node_rpc::FullDeps {
+					client: client.clone(),
+					pool: pool.clone(),
+					select_chain: select_chain.clone(),
+					chain_spec: chain_spec.cloned_box(),
+					babe: cord_node_rpc::BabeDeps {
+						keystore: keystore.clone(),
+						babe_worker_handle: babe_worker_handle.clone(),
+					},
+					grandpa: cord_node_rpc::GrandpaDeps {
+						shared_voter_state: shared_voter_state.clone(),
+						shared_authority_set: shared_authority_set.clone(),
+						justification_stream: justification_stream.clone(),
+						subscription_executor: subscription_executor.clone(),
+						finality_provider: finality_proof_provider.clone(),
+					},
+					beefy: cord_node_rpc::BeefyDeps::<
+						sp_consensus_beefy::ecdsa_crypto::AuthorityId,
+					> {
+						beefy_finality_proof_stream: beefy_rpc_links
+							.from_voter_justif_stream
+							.clone(),
+						beefy_best_block_stream: beefy_rpc_links
+							.from_voter_best_beefy_stream
+							.clone(),
+						subscription_executor,
+					},
+					statement_store: rpc_statement_store.clone(),
+					backend: rpc_backend.clone(),
+				};
 
-			cord_node_rpc::create_full(deps).map_err(Into::into)
-		};
+				cord_node_rpc::create_full(deps).map_err(Into::into)
+			};
 
 		(rpc_extensions_builder, shared_voter_state2)
 	};
@@ -442,13 +491,12 @@ pub fn new_partial(
 		select_chain,
 		import_queue,
 		transaction_pool,
-		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry),
+		other: (rpc_extensions_builder, import_setup, rpc_setup, telemetry, statement_store),
 	})
 }
 
 /// Result of [`new_full_base`].
 #[cfg(feature = "full-node")]
-
 pub struct NewFullBase {
 	/// The task manager of the node.
 	pub task_manager: TaskManager,
@@ -465,19 +513,25 @@ pub struct NewFullBase {
 }
 
 /// Creates a full service from the configuration.
+#[cfg(feature = "full-node")]
 pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	config: Configuration,
 	disable_hardware_benchmarks: bool,
 	with_startup_data: impl FnOnce(
-		&sc_consensus_babe::BabeBlockImport<Block, FullClient, FullGrandpaBlockImport>,
+		&sc_consensus_babe::BabeBlockImport<
+			Block,
+			FullClient,
+			FullBeefyBlockImport<FullGrandpaBlockImport>,
+		>,
 		&sc_consensus_babe::BabeLink<Block>,
 	),
 ) -> Result<NewFullBase, ServiceError> {
+	let is_offchain_indexing_enabled = config.offchain_worker.indexing_enabled;
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_braid() ||
-		config.chain_spec.is_loom() ||
-		config.chain_spec.is_weave()
+	let backoff_authoring_blocks = if config.chain_spec.is_braid()
+		|| config.chain_spec.is_loom()
+		|| config.chain_spec.is_weave()
 	{
 		// the block authoring backoff is disabled on production networks
 		None
@@ -495,8 +549,8 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 
 	let hwbench = (!disable_hardware_benchmarks)
 		.then_some(config.database.path().map(|database_path| {
-			let _ = std::fs::create_dir_all(database_path);
-			sc_sysinfo::gather_hwbench(Some(database_path))
+			let _ = std::fs::create_dir_all(&database_path);
+			sc_sysinfo::gather_hwbench(Some(database_path), &SUBSTRATE_REFERENCE_HARDWARE)
 		}))
 		.flatten();
 
@@ -508,7 +562,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		keystore_container,
 		select_chain,
 		transaction_pool,
-		other: (rpc_builder, import_setup, rpc_setup, mut telemetry),
+		other: (rpc_builder, import_setup, rpc_setup, mut telemetry, statement_store),
 	} = new_partial(&config)?;
 
 	let metrics = N::register_notification_metrics(
@@ -517,8 +571,12 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	let shared_voter_state = rpc_setup;
 	let auth_disc_publish_non_global_ips = config.network.allow_non_globals_in_dht;
 	let auth_disc_public_addresses = config.network.public_addresses.clone();
-	let mut net_config =
-		sc_network::config::FullNetworkConfiguration::<_, _, N>::new(&config.network);
+
+	let mut net_config = sc_network::config::FullNetworkConfiguration::<_, _, N>::new(
+		&config.network,
+		config.prometheus_config.as_ref().map(|cfg| cfg.registry.clone()),
+	);
+
 	let genesis_hash = client.block_hash(0).ok().flatten().expect("Genesis block exists; qed");
 	let peer_store_handle = net_config.peer_store_handle();
 
@@ -531,6 +589,37 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			Arc::clone(&peer_store_handle),
 		);
 	net_config.add_notification_protocol(grandpa_protocol_config);
+
+	let beefy_gossip_proto_name =
+		sc_consensus_beefy::gossip_protocol_name(&genesis_hash, config.chain_spec.fork_id());
+	// `beefy_on_demand_justifications_handler` is given to `beefy-gadget` task to be run,
+	// while `beefy_req_resp_cfg` is added to `config.network.request_response_protocols`.
+	let (beefy_on_demand_justifications_handler, beefy_req_resp_cfg) =
+		sc_consensus_beefy::communication::request_response::BeefyJustifsRequestHandler::new::<_, N>(
+			&genesis_hash,
+			config.chain_spec.fork_id(),
+			client.clone(),
+			prometheus_registry.clone(),
+		);
+
+	let (beefy_notification_config, beefy_notification_service) =
+		sc_consensus_beefy::communication::beefy_peers_set_config::<_, N>(
+			beefy_gossip_proto_name.clone(),
+			metrics.clone(),
+			Arc::clone(&peer_store_handle),
+		);
+
+	net_config.add_notification_protocol(beefy_notification_config);
+	net_config.add_request_response_protocol(beefy_req_resp_cfg);
+
+	let (statement_handler_proto, statement_config) =
+		sc_network_statement::StatementHandlerPrototype::new::<_, _, N>(
+			genesis_hash,
+			config.chain_spec.fork_id(),
+			metrics.clone(),
+			Arc::clone(&peer_store_handle),
+		);
+	net_config.add_notification_protocol(statement_config);
 
 	let warp_sync = Arc::new(sc_consensus_grandpa::warp_proof::NetworkProvider::new(
 		backend.clone(),
@@ -547,7 +636,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			spawn_handle: task_manager.spawn_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
-			warp_sync_params: Some(WarpSyncParams::WithProvider(warp_sync)),
+			warp_sync_config: Some(WarpSyncConfig::WithProvider(warp_sync)),
 			block_relay: None,
 			metrics,
 		})?;
@@ -569,7 +658,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 
 	if let Some(hwbench) = hwbench {
 		sc_sysinfo::print_hwbench(&hwbench);
-		match SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench) {
+		match SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench, false) {
 			Err(err) if role.is_authority() => {
 				log::warn!(
 					"⚠️  The hardware does not meet the minimal requirements {} for role 'Authority'.",
@@ -589,7 +678,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		}
 	}
 
-	let (block_import, grandpa_link, babe_link) = import_setup;
+	let (block_import, grandpa_link, babe_link, beefy_links) = import_setup;
 
 	(with_startup_data)(&block_import, &babe_link);
 
@@ -684,6 +773,49 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	// need a keystore, regardless of which protocol we use below.
 	let keystore = if role.is_authority() { Some(keystore_container.keystore()) } else { None };
 
+	// beefy is enabled if its notification service exists
+	let network_params = sc_consensus_beefy::BeefyNetworkParams {
+		network: Arc::new(network.clone()),
+		sync: sync_service.clone(),
+		gossip_protocol_name: beefy_gossip_proto_name,
+		justifications_protocol_name: beefy_on_demand_justifications_handler.protocol_name(),
+		notification_service: beefy_notification_service,
+		_phantom: core::marker::PhantomData::<Block>,
+	};
+	let beefy_params = sc_consensus_beefy::BeefyParams {
+		client: client.clone(),
+		backend: backend.clone(),
+		payload_provider: sp_consensus_beefy::mmr::MmrRootProvider::new(client.clone()),
+		runtime: client.clone(),
+		key_store: keystore.clone(),
+		network_params,
+		min_block_delta: 8,
+		prometheus_registry: prometheus_registry.clone(),
+		links: beefy_links,
+		on_demand_justifications_handler: beefy_on_demand_justifications_handler,
+		is_authority: role.is_authority(),
+	};
+
+	let beefy_gadget =
+		sc_consensus_beefy::start_beefy_gadget::<_, _, _, _, _, _, _, _>(beefy_params);
+	// BEEFY is part of consensus, if it fails we'll bring the node down with it to make sure it
+	// is noticed.
+	task_manager
+		.spawn_essential_handle()
+		.spawn_blocking("beefy-gadget", None, beefy_gadget);
+	// When offchain indexing is enabled, MMR gadget should also run.
+	if is_offchain_indexing_enabled {
+		task_manager.spawn_essential_handle().spawn_blocking(
+			"mmr-gadget",
+			None,
+			mmr_gadget::MmrGadget::start(
+				client.clone(),
+				backend.clone(),
+				sp_mmr_primitives::INDEXING_PREFIX.to_vec(),
+			),
+		);
+	}
+
 	let grandpa_config = sc_consensus_grandpa::Config {
 		// FIXME #1578 make this available through chainspec
 		gossip_duration: std::time::Duration::from_millis(333),
@@ -691,7 +823,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 		name: Some(name),
 		observer_enabled: false,
 		keystore,
-		local_role: role.clone(),
+		local_role: role,
 		telemetry: telemetry.as_ref().map(|x| x.handle()),
 		protocol_name: grandpa_protocol_name,
 	};
@@ -711,7 +843,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			notification_service: grandpa_notification_service,
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: sc_consensus_grandpa::VotingRulesBuilder::default().build(),
-			prometheus_registry,
+			prometheus_registry: prometheus_registry.clone(),
 			shared_voter_state,
 			offchain_tx_pool_factory: OffchainTransactionPoolFactory::new(transaction_pool.clone()),
 		};
@@ -724,6 +856,26 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 			sc_consensus_grandpa::run_grandpa_voter(grandpa_params)?,
 		);
 	}
+
+	// Spawn statement protocol worker
+	let statement_protocol_executor = {
+		let spawn_handle = task_manager.spawn_handle();
+		Box::new(move |fut| {
+			spawn_handle.spawn("network-statement-validator", Some("networking"), fut);
+		})
+	};
+	let statement_handler = statement_handler_proto.build(
+		network.clone(),
+		sync_service.clone(),
+		statement_store.clone(),
+		prometheus_registry.as_ref(),
+		statement_protocol_executor,
+	)?;
+	task_manager.spawn_handle().spawn(
+		"network-statement-handler",
+		Some("networking"),
+		statement_handler.run(),
+	);
 
 	if enable_offchain_worker {
 		task_manager.spawn_handle().spawn(
@@ -739,7 +891,9 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 				network_provider: Arc::new(network.clone()),
 				is_validator: role.is_authority(),
 				enable_http_requests: true,
-				custom_extensions: move |_| vec![],
+				custom_extensions: move |_| {
+					vec![Box::new(statement_store.clone().as_statement_store_ext()) as Box<_>]
+				},
 			})
 			.run(client.clone(), task_manager.spawn_handle())
 			.boxed(),

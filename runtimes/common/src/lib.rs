@@ -20,22 +20,34 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub mod elections;
+extern crate alloc;
+
 use cord_primitives::{AccountId, Balance, BlockNumber};
 use frame_support::{
 	parameter_types,
-	traits::{Currency, OnUnbalanced},
+	traits::{
+		fungible::{Balanced, Credit},
+		tokens::imbalance::ResolveTo,
+		Imbalance, OnUnbalanced,
+	},
+	weights::{constants::WEIGHT_REF_TIME_PER_SECOND, Weight},
 };
+use pallet_treasury::TreasuryAccountId;
 
 use frame_system::limits;
 use sp_runtime::{FixedPointNumber, Perbill, Perquintill};
 use static_assertions::const_assert;
 
 pub use pallet_balances::Call as BalancesCall;
+#[cfg(feature = "std")]
+pub use pallet_staking::StakerStatus;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
 use sp_core::crypto::Ss58AddressFormat;
 pub use sp_runtime::traits::{Bounded, Get};
-use sp_std::marker::PhantomData;
+#[cfg(any(feature = "std", test))]
+pub use sp_runtime::BuildStorage;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Ss58AddressFormatPrefix {
@@ -61,6 +73,10 @@ pub const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(1);
 /// We allow `Normal` extrinsics to fill up the block up to 80%, the rest can be used
 /// by  Operational  extrinsics.
 pub const NORMAL_DISPATCH_RATIO: Perbill = Perbill::from_percent(80);
+/// We allow for 2 seconds of compute with a 3 second average block time.
+/// The storage proof size is not limited so far.
+pub const MAXIMUM_BLOCK_WEIGHT: Weight =
+	Weight::from_parts(WEIGHT_REF_TIME_PER_SECOND.saturating_mul(2), u64::MAX);
 
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
@@ -94,41 +110,43 @@ pub type SlowAdjustingFeeUpdate<R> = TargetedFeeAdjustment<
 	MaximumMultiplier,
 >;
 
-pub type NegativeImbalance<T> = <pallet_balances::Pallet<T> as Currency<
-	<T as frame_system::Config>::AccountId,
->>::NegativeImbalance;
-
-pub struct EverythingToTheTreasury<R>(PhantomData<R>);
-
-impl<R> OnUnbalanced<NegativeImbalance<R>> for EverythingToTheTreasury<R>
-where
-	R: pallet_balances::Config + pallet_treasury::Config,
-	pallet_treasury::Pallet<R>: OnUnbalanced<NegativeImbalance<R>>,
-{
-	fn on_unbalanceds<B>(mut fees_then_tips: impl Iterator<Item = NegativeImbalance<R>>) {
-		use pallet_treasury::Pallet as Treasury;
-
-		if let Some(fees) = fees_then_tips.next() {
-			<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(fees);
-			if let Some(tips) = fees_then_tips.next() {
-				<Treasury<R> as OnUnbalanced<_>>::on_unbalanced(tips);
-			}
-		}
-	}
-}
-
-pub struct EverythingToAuthor<R>(sp_std::marker::PhantomData<R>);
-
-impl<R> OnUnbalanced<NegativeImbalance<R>> for EverythingToAuthor<R>
+/// Logic for the author to get a portion of fees.
+pub struct ToAuthor<R>(core::marker::PhantomData<R>);
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for ToAuthor<R>
 where
 	R: pallet_balances::Config + pallet_authorship::Config,
 	<R as frame_system::Config>::AccountId: From<AccountId>,
 	<R as frame_system::Config>::AccountId: Into<AccountId>,
-	<R as pallet_balances::Config>::Balance: Into<u128>,
 {
-	fn on_nonzero_unbalanced(amount: NegativeImbalance<R>) {
+	fn on_nonzero_unbalanced(
+		amount: Credit<<R as frame_system::Config>::AccountId, pallet_balances::Pallet<R>>,
+	) {
 		if let Some(author) = <pallet_authorship::Pallet<R>>::author() {
-			<pallet_balances::Pallet<R>>::resolve_creating(&author, amount);
+			let _ = <pallet_balances::Pallet<R>>::resolve(&author, amount);
+		}
+	}
+}
+
+pub struct DealWithFees<R>(core::marker::PhantomData<R>);
+impl<R> OnUnbalanced<Credit<R::AccountId, pallet_balances::Pallet<R>>> for DealWithFees<R>
+where
+	R: pallet_balances::Config + pallet_authorship::Config + pallet_treasury::Config,
+	<R as frame_system::Config>::AccountId: From<AccountId>,
+	<R as frame_system::Config>::AccountId: Into<AccountId>,
+{
+	fn on_unbalanceds(
+		mut fees_then_tips: impl Iterator<Item = Credit<R::AccountId, pallet_balances::Pallet<R>>>,
+	) {
+		// Merge all unbalanced amounts (fees and tips) into a single Credit
+		if let Some(mut total_unbalanced) = fees_then_tips.next() {
+			for additional_unbalanced in fees_then_tips {
+				additional_unbalanced.merge_into(&mut total_unbalanced);
+			}
+
+			// Send the merged amount to the treasury
+			ResolveTo::<TreasuryAccountId<R>, pallet_balances::Pallet<R>>::on_unbalanced(
+				total_unbalanced,
+			);
 		}
 	}
 }
@@ -139,18 +157,23 @@ where
 /// runtime but are now runtime dependant.
 #[macro_export]
 macro_rules! impl_runtime_weights {
-	($runtime:ident, $maximum_block_weight:expr) => {
+	($runtime:ident) => {
 		use frame_support::{dispatch::DispatchClass, weights::Weight};
 		use frame_system::limits;
-		pub use runtime_common::{AVERAGE_ON_INITIALIZE_RATIO, NORMAL_DISPATCH_RATIO};
+		use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
+		pub use runtime_common::{
+			impl_elections_weights, AVERAGE_ON_INITIALIZE_RATIO, MAXIMUM_BLOCK_WEIGHT,
+			NORMAL_DISPATCH_RATIO,
+		};
 		use sp_runtime::{FixedPointNumber, Perquintill};
+
+		// Implement the weight types of the elections module.
+		impl_elections_weights!($runtime);
 
 		// Expose the weight from the runtime constants module.
 		pub use $runtime::weights::{
 			BlockExecutionWeight, ExtrinsicBaseWeight, ParityDbWeight, RocksDbWeight,
 		};
-
-		const MAX_BLOCK_WEIGHT: Weight = $maximum_block_weight;
 
 		parameter_types! {
 			/// Block weights base values and limits.
@@ -160,14 +183,14 @@ macro_rules! impl_runtime_weights {
 					weights.base_extrinsic = $runtime::weights::ExtrinsicBaseWeight::get();
 				})
 				.for_class(DispatchClass::Normal, |weights| {
-					weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT);
+					weights.max_total = Some(NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT);
 				})
 				.for_class(DispatchClass::Operational, |weights| {
-					weights.max_total = Some(MAX_BLOCK_WEIGHT);
+					weights.max_total = Some(MAXIMUM_BLOCK_WEIGHT);
 					// Operational transactions have an extra reserved space, so that they
-					// are included even if block reached MAX_BLOCK_WEIGHT.
+					// are included even if block reached `MAXIMUM_BLOCK_WEIGHT`.
 					weights.reserved = Some(
-						MAX_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAX_BLOCK_WEIGHT,
+						MAXIMUM_BLOCK_WEIGHT - NORMAL_DISPATCH_RATIO * MAXIMUM_BLOCK_WEIGHT,
 					);
 				})
 				.avg_block_initialization(AVERAGE_ON_INITIALIZE_RATIO)

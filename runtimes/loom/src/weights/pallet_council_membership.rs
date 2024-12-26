@@ -48,7 +48,7 @@ use core::marker::PhantomData;
 
 /// Weight functions for `pallet_membership`.
 pub struct WeightInfo<T>(PhantomData<T>);
-impl<T: frame_system::Config> pallet_membership::WeightInfo for WeightInfo<T> {
+impl<T: frame_system::Config> pallet_council_membership::WeightInfo for WeightInfo<T> {
 	/// Storage: `NetworkMembership::Members` (r:1 w:0)
 	/// Proof: `NetworkMembership::Members` (`max_values`: None, `max_size`: Some(52), added: 2527, mode: `MaxEncodedLen`)
 	/// Storage: `TechnicalMembership::Members` (r:1 w:1)

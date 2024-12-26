@@ -220,6 +220,7 @@ fn braid_sign_call(
 		frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<runtime::Runtime>::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::<runtime::Runtime>::from(0),
+		frame_metadata_hash_extension::CheckMetadataHash::new(false),
 	);
 
 	let payload = runtime::SignedPayload::from_raw(
@@ -235,6 +236,7 @@ fn braid_sign_call(
 			(),
 			(),
 			(),
+			None,
 		),
 	);
 
@@ -274,6 +276,7 @@ fn loom_sign_call(
 		frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<runtime::Runtime>::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::<runtime::Runtime>::from(0),
+		frame_metadata_hash_extension::CheckMetadataHash::new(false),
 	);
 
 	let payload = runtime::SignedPayload::from_raw(
@@ -289,6 +292,7 @@ fn loom_sign_call(
 			(),
 			(),
 			(),
+			None,
 		),
 	);
 
@@ -328,6 +332,7 @@ fn weave_sign_call(
 		frame_system::CheckNonce::<runtime::Runtime>::from(nonce),
 		frame_system::CheckWeight::<runtime::Runtime>::new(),
 		pallet_transaction_payment::ChargeTransactionPayment::<runtime::Runtime>::from(0),
+		frame_metadata_hash_extension::CheckMetadataHash::new(false),
 	);
 
 	let payload = runtime::SignedPayload::from_raw(
@@ -342,6 +347,7 @@ fn weave_sign_call(
 			(),
 			(),
 			(),
+			None,
 		),
 	);
 

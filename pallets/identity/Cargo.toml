@@ -1,5 +1,5 @@
 [package]
-name = "pallet-identity"
+name = "pallet-cord-identity"
 description = "FRAME membership management pallet - modified to support CORD governance"
 authors = [
 	"Parity Technologies <admin@parity.io>",

@@ -39,7 +39,7 @@
 
 mod types;
 
-#[cfg(any(feature = "mock", test))]
+#[cfg(test)]
 pub mod mock;
 
 #[cfg(test)]

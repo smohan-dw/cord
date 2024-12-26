@@ -19,17 +19,18 @@
 #![allow(clippy::unused_unit)]
 
 use crate::*;
-use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
+extern crate alloc;
+#[cfg(all(not(feature = "std"), feature = "serde"))]
+use alloc::{format, string::String, vec};
+use alloc::{str, vec::Vec};
+// use blake2::{Blake2b, Blake2b512, Digest};
+// use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{ensure, sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
 use scale_info::TypeInfo;
-use sp_std::{
-	fmt::Debug,
-	prelude::{Clone, Vec},
-	str, vec,
-};
 
 /// CORD Identifier Prefix
+#[cfg(feature = "serde")]
 const PREFIX: &[u8] = b"CRDIDFR";
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -135,6 +136,7 @@ pub enum IdentifierError {
 }
 
 pub trait IdentifierCreator {
+	#[cfg(feature = "serde")]
 	fn create_identifier(
 		data: &[u8],
 		id_type: IdentifierType,
@@ -142,6 +144,7 @@ pub trait IdentifierCreator {
 }
 
 impl IdentifierCreator for Ss58Identifier {
+	#[cfg(feature = "serde")]
 	fn create_identifier(
 		data: &[u8],
 		id_type: IdentifierType,
@@ -152,10 +155,12 @@ impl IdentifierCreator for Ss58Identifier {
 }
 
 pub trait CordIdentifierType {
+	#[cfg(feature = "serde")]
 	fn get_type(&self) -> Result<IdentifierType, IdentifierError>;
 }
 
 impl CordIdentifierType for Ss58Identifier {
+	#[cfg(feature = "serde")]
 	fn get_type(&self) -> Result<IdentifierType, IdentifierError> {
 		let identifier_type_u16 = self.get_identifier_type()?;
 
@@ -165,14 +170,18 @@ impl CordIdentifierType for Ss58Identifier {
 
 impl Ss58Identifier {
 	/// Generate Blake2b Hash
-	pub fn ss58hash(data: &[u8]) -> Blake2bResult {
-		let mut context = Blake2b::new(64);
+	#[cfg(feature = "serde")]
+	pub fn ss58hash(data: &[u8]) -> Vec<u8> {
+		use blake2::{Blake2b512, Digest};
+
+		let mut context = Blake2b512::new();
 		context.update(PREFIX);
 		context.update(data);
-		context.finalize()
+		context.finalize().to_vec()
 	}
 
 	/// Create a new cryptographic identifier.
+	#[cfg(feature = "serde")]
 	pub fn from_encoded<I>(data: I, id_ident: u16) -> Result<Self, IdentifierError>
 	where
 		I: AsRef<[u8]> + Into<Vec<u8>>,
@@ -200,7 +209,7 @@ impl Ss58Identifier {
 		};
 		v.extend(data.as_ref());
 		let r = Self::ss58hash(&v);
-		v.extend(&r.as_bytes()[0..2]);
+		v.extend(&r[0..2]);
 
 		Ok(Self(
 			Vec::<u8>::from(bs58::encode(v).into_string())
@@ -213,6 +222,7 @@ impl Ss58Identifier {
 		&self.0
 	}
 
+	#[cfg(feature = "serde")]
 	pub fn get_identifier_type(&self) -> Result<u16, IdentifierError> {
 		let identifier =
 			str::from_utf8(self.inner()).map_err(|_| IdentifierError::InvalidFormat)?;
@@ -243,6 +253,7 @@ impl Ss58Identifier {
 		}
 	}
 
+	#[cfg(feature = "serde")]
 	pub fn default_error() -> Self {
 		let error_value_base58 = bs58::encode([0]).into_string();
 

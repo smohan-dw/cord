@@ -36,7 +36,7 @@ use frame_system::pallet_prelude::BlockNumberFor;
 pub use crate::pallet::*;
 use sp_std::vec;
 
-#[cfg(any(feature = "mock", test))]
+#[cfg(test)]
 pub mod mock;
 
 #[cfg(test)]

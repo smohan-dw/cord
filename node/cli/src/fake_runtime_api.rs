@@ -22,9 +22,10 @@
 //! the native runtimes.
 #![allow(missing_docs)]
 
-use cord_primitives::{AccountId, Balance, Block, Nonce};
+use cord_primitives::{AccountId, Balance, Block, BlockNumber, Hash, Nonce};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
+use sp_consensus_beefy::ecdsa_crypto::{AuthorityId as BeefyId, Signature as BeefySignature};
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
 use sp_core::OpaqueMetadata;
@@ -111,6 +112,100 @@ sp_api::impl_runtime_apis! {
 			unimplemented!()
 		}
 	}
+
+	impl sp_statement_store::runtime_api::ValidateStatement<Block> for Runtime {
+		fn validate_statement(
+			_: sp_statement_store::runtime_api::StatementSource,
+			_: sp_statement_store::Statement,
+		) -> Result<sp_statement_store::runtime_api::ValidStatement, sp_statement_store::runtime_api::InvalidStatement> {
+			unimplemented!()
+		}
+	}
+
+	impl sp_consensus_beefy::BeefyApi<Block, BeefyId> for Runtime {
+		fn beefy_genesis() -> Option<BlockNumber> {
+			unimplemented!()
+		}
+
+		fn validator_set() -> Option<sp_consensus_beefy::ValidatorSet<BeefyId>> {
+			unimplemented!()
+		}
+
+		fn submit_report_double_voting_unsigned_extrinsic(
+			_: sp_consensus_beefy::DoubleVotingProof<
+				BlockNumber,
+				BeefyId,
+				BeefySignature,
+			>,
+			_: sp_consensus_beefy::OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			unimplemented!()
+		}
+
+		fn submit_report_fork_voting_unsigned_extrinsic(
+			_: sp_consensus_beefy::ForkVotingProof<
+				<Block as BlockT>::Header,
+				BeefyId,
+				sp_runtime::OpaqueValue
+			>,
+			_: sp_consensus_beefy::OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			unimplemented!()
+		}
+
+		fn submit_report_future_block_voting_unsigned_extrinsic(
+			_: sp_consensus_beefy::FutureBlockVotingProof<BlockNumber, BeefyId>,
+			_: sp_consensus_beefy::OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			unimplemented!()
+		}
+
+		fn generate_key_ownership_proof(
+			_: sp_consensus_beefy::ValidatorSetId,
+			_: BeefyId,
+		) -> Option<sp_consensus_beefy::OpaqueKeyOwnershipProof> {
+			unimplemented!()
+		}
+
+		fn generate_ancestry_proof(
+			_: BlockNumber,
+			_: Option<BlockNumber>,
+		) -> Option<sp_runtime::OpaqueValue> {
+			unimplemented!()
+		}
+	}
+
+	impl sp_mmr_primitives::MmrApi<Block, Hash, BlockNumber> for Runtime {
+		fn mmr_root() -> Result<Hash, sp_mmr_primitives::Error> {
+			unimplemented!()
+		}
+
+		fn mmr_leaf_count() -> Result<sp_mmr_primitives::LeafIndex, sp_mmr_primitives::Error> {
+			unimplemented!()
+		}
+
+		fn generate_proof(
+			_: Vec<BlockNumber>,
+			_: Option<BlockNumber>,
+		) -> Result<(Vec<sp_mmr_primitives::EncodableOpaqueLeaf>, sp_mmr_primitives::LeafProof<Hash>), sp_mmr_primitives::Error> {
+			unimplemented!()
+		}
+
+		fn verify_proof(_: Vec<sp_mmr_primitives::EncodableOpaqueLeaf>, _: sp_mmr_primitives::LeafProof<Hash>)
+			-> Result<(), sp_mmr_primitives::Error>
+		{
+			unimplemented!()
+		}
+
+		fn verify_proof_stateless(
+			_: Hash,
+			_: Vec<sp_mmr_primitives::EncodableOpaqueLeaf>,
+			_: sp_mmr_primitives::LeafProof<Hash>
+		) -> Result<(), sp_mmr_primitives::Error> {
+			unimplemented!()
+		}
+	}
+
 
 	impl sp_consensus_grandpa::GrandpaApi<Block> for Runtime {
 		fn grandpa_authorities() -> Vec<(GrandpaId, u64)> {

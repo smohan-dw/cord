@@ -19,12 +19,13 @@ clap = { workspace = true, features = ["derive"] }
 codec = { workspace = true }
 thiserror = { workspace = true }
 sc-cli = { workspace = true }
-sc-client-api = { workspace = true }
+sc-client-api = { workspace = true, default-features = true }
 sc-service = { workspace = true }
-sp-blockchain = { workspace = true }
-sp-core = { workspace = true }
-sp-runtime = { workspace = true }
-sp-io = { workspace = true }
+sp-blockchain = { workspace = true, default-features = true }
+sp-core = { workspace = true, default-features = true }
+sp-runtime = { workspace = true, default-features = true }
+sp-io = { workspace = true, default-features = true }
+sp-statement-store = { workspace = true, default-features = true }
 
 [features]
 runtime-benchmarks = [
