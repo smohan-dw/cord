@@ -1289,15 +1289,14 @@ impl<T: Config> Pallet<T> {
 	/// is actually a valid SS58 Identifier Format and of valid type `Registries`.
 	pub fn is_valid_ss58_format(identifier: &Ss58Identifier) -> bool {
 		match identifier.get_type() {
-			Ok(id_type) => {
+			Ok(id_type) =>
 				if id_type == IdentifierType::Registries {
 					log::debug!("The SS58 identifier is of type Registries.");
 					true
 				} else {
 					log::debug!("The SS58 identifier is not of type Registries.");
 					false
-				}
-			},
+				},
 			Err(e) => {
 				log::debug!("Invalid SS58 identifier. Error: {:?}", e);
 				false

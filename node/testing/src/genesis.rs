@@ -19,14 +19,13 @@
 //! Genesis Configuration.
 
 use crate::keyring::*;
-use cord_loom_runtime::{
-	AccountId, AssetsConfig, AuthorityMembershipConfig, BalancesConfig, IndicesConfig,
-	NetworkMembershipConfig, NetworkParametersConfig, NodeAuthorizationConfig,
-	RuntimeGenesisConfig, SessionConfig,
+use cord_weave_runtime::{
+	AccountId, AssetsConfig, BalancesConfig, IndicesConfig, RuntimeGenesisConfig, SessionConfig,
+	StakerStatus, StakingConfig,
 };
-use cord_loom_runtime_constants::currency::*;
-use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
-use sp_std::collections::btree_map::BTreeMap;
+use cord_weave_runtime_constants::currency::*;
+use sp_keyring::Ed25519Keyring;
+use sp_runtime::Perbill;
 
 /// Create genesis runtime configuration for tests.
 pub fn config() -> RuntimeGenesisConfig {
@@ -52,35 +51,25 @@ pub fn config_endowed(extra_endowed: Vec<AccountId>) -> RuntimeGenesisConfig {
 	RuntimeGenesisConfig {
 		indices: IndicesConfig { indices: vec![] },
 		balances: BalancesConfig { balances: endowed },
-		network_parameters: NetworkParametersConfig {
-			permissioned: true,
-			_marker: Default::default(),
-		},
-		node_authorization: NodeAuthorizationConfig {
-			nodes: vec![
-				(b"12D3KooWBmAwcd4PJNJvfV89HwE48nwkRmAgo8Vy3uQEyNNHBox2".to_vec(), alice()),
-				(b"12D3KooWQYV9dGMFoRzNStwpXztXaBUjtPqi6aU76ZgUriHhKust".to_vec(), bob()),
-				(b"12D3KooWJvyP3VJYymTqG7eH4PM5rN4T2agk5cdNCfNymAqwqcvZ".to_vec(), charlie()),
-				(b"12D3KooWPHWFrfaJzxPnqnAYAoRUyAHHKqACmEycGTVmeVhQYuZN".to_vec(), dave()),
-			],
-		},
-		network_membership: NetworkMembershipConfig {
-			members: members
-				.iter()
-				.map(|member| (member.clone(), false))
-				.collect::<BTreeMap<_, _>>(),
-		},
-		authority_membership: AuthorityMembershipConfig { initial_authorities: members },
 		session: SessionConfig {
 			keys: vec![
-				(alice(), dave(), to_session_keys(&Ed25519Keyring::Alice, &Sr25519Keyring::Alice)),
-				(bob(), eve(), to_session_keys(&Ed25519Keyring::Bob, &Sr25519Keyring::Bob)),
-				(
-					charlie(),
-					ferdie(),
-					to_session_keys(&Ed25519Keyring::Charlie, &Sr25519Keyring::Charlie),
-				),
+				(alice(), dave(), session_keys_from_seed(Ed25519Keyring::Alice.into())),
+				(bob(), eve(), session_keys_from_seed(Ed25519Keyring::Bob.into())),
+				(charlie(), ferdie(), session_keys_from_seed(Ed25519Keyring::Charlie.into())),
 			],
+			..Default::default()
+		},
+		staking: StakingConfig {
+			stakers: vec![
+				(dave(), dave(), 111 * UNITS, StakerStatus::Validator),
+				(eve(), eve(), 100 * UNITS, StakerStatus::Validator),
+				(ferdie(), ferdie(), 100 * UNITS, StakerStatus::Validator),
+			],
+			validator_count: 3,
+			minimum_validator_count: 0,
+			slash_reward_fraction: Perbill::from_percent(10),
+			invulnerables: vec![alice(), bob(), charlie()],
+			..Default::default()
 		},
 		assets: AssetsConfig { assets: vec![(9, alice(), true, 1)], ..Default::default() },
 		..Default::default()

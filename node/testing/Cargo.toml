@@ -21,10 +21,11 @@ fs_extra = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 tempfile = { workspace = true }
-frame-system = { workspace = true }
+frame-system = { workspace = true, default-features = true }
+frame-metadata-hash-extension = { workspace = true, default-features = true }
 cord-node-cli = { workspace = true }
 cord-primitives = { workspace = true }
-cord-loom-runtime = { workspace = true }
+cord-weave-runtime = { workspace = true }
 sc-block-builder = { workspace = true }
 sc-client-api = { workspace = true }
 sc-client-db = { features = ["rocksdb"], workspace = true }
@@ -45,4 +46,8 @@ sp-timestamp = { workspace = true }
 cord-test-client = { workspace = true }
 pallet-network-membership = { workspace = true }
 pallet-transaction-payment = { workspace = true }
-cord-loom-runtime-constants = { workspace = true }
+cord-weave-runtime-constants = { workspace = true }
+pallet-asset-conversion-tx-payment = { workspace = true, default-features = true }
+pallet-asset-conversion = { workspace = true, default-features = true }
+pallet-assets = { workspace = true, default-features = true }
+pallet-asset-tx-payment = { workspace = true, default-features = true }

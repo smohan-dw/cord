@@ -31,9 +31,7 @@ use sp_genesis_builder::PresetId;
 use sp_runtime::traits::IdentifyAccount;
 #[cfg(not(feature = "std"))]
 use sp_std::alloc::format;
-use sp_std::collections::btree_map::BTreeMap;
-use sp_std::vec;
-use sp_std::vec::Vec;
+use sp_std::{collections::btree_map::BTreeMap, vec, vec::Vec};
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {

@@ -60,9 +60,10 @@ use sp_consensus_beefy::{
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
-use sp_runtime::generic::Era;
 use sp_runtime::{
-	create_runtime_str, generic, impl_opaque_keys,
+	create_runtime_str, generic,
+	generic::Era,
+	impl_opaque_keys,
 	traits::{
 		self, AccountIdConversion, BlakeTwo256, Block as BlockT, Keccak256, NumberFor, OpaqueKeys,
 		SaturatedConversion, StaticLookup, Verify,
