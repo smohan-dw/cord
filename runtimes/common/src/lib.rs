@@ -21,6 +21,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub mod elections;
+
 extern crate alloc;
 
 use cord_primitives::{AccountId, Balance, BlockNumber};
@@ -40,11 +41,12 @@ use sp_runtime::{FixedPointNumber, Perbill, Perquintill};
 use static_assertions::const_assert;
 
 pub use pallet_balances::Call as BalancesCall;
+use pallet_balances::Pallet as PalletBalance;
 #[cfg(feature = "std")]
 pub use pallet_staking::StakerStatus;
 pub use pallet_timestamp::Call as TimestampCall;
 use pallet_transaction_payment::{Multiplier, TargetedFeeAdjustment};
-use sp_core::crypto::Ss58AddressFormat;
+use sp_core::{crypto::Ss58AddressFormat, TypedGet};
 pub use sp_runtime::traits::{Bounded, Get};
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
@@ -66,6 +68,8 @@ impl From<Ss58AddressFormatPrefix> for Ss58AddressFormat {
 		Ss58AddressFormat::custom(prefix as u16)
 	}
 }
+
+pub(crate) type CreditOf<T> = Credit<<T as frame_system::Config>::AccountId, PalletBalance<T, ()>>;
 
 /// We assume that an on-initialize consumes 1% of the weight on average, hence a single extrinsic
 /// will not be allowed to consume more than `AvailableBlockRatio - 1%`.
@@ -142,12 +146,26 @@ where
 			for additional_unbalanced in fees_then_tips {
 				additional_unbalanced.merge_into(&mut total_unbalanced);
 			}
-
 			// Send the merged amount to the treasury
 			ResolveTo::<TreasuryAccountId<R>, pallet_balances::Pallet<R>>::on_unbalanced(
 				total_unbalanced,
 			);
 		}
+	}
+}
+
+pub struct SendFeesToTreasury<R>(sp_std::marker::PhantomData<R>);
+
+impl<R> OnUnbalanced<CreditOf<R>> for SendFeesToTreasury<R>
+where
+	R: pallet_balances::Config + pallet_treasury::Config,
+{
+	fn on_nonzero_unbalanced(amount: CreditOf<R>) {
+		// let treasury_account_id = pallet_treasury::Pallet::<T>::account_id()
+		let treasury_account = TreasuryAccountId::<R>::get();
+
+		let result = pallet_balances::Pallet::<R>::resolve(&treasury_account, amount);
+		debug_assert!(result.is_ok(), "The whole credit cannot be countered");
 	}
 }
 

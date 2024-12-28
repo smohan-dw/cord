@@ -15,16 +15,19 @@
 
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
 #![cfg_attr(not(feature = "std"), no_std)]
 #![warn(unused_crate_dependencies)]
 
-/// Low-level types used throughout the CORD code.
+extern crate alloc;
+
+use alloc::vec::Vec;
+
 use sp_runtime::{
 	generic,
 	traits::{BlakeTwo256, IdentifyAccount, Verify},
 	MultiSignature, OpaqueExtrinsic,
 };
-use sp_std::vec::Vec;
 
 /// An index to a block.
 pub type BlockNumber = u32;

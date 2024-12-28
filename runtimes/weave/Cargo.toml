@@ -31,6 +31,8 @@ primitive-types = { features = [
 	"num-traits",
 	"scale-info",
 ], workspace = true }
+derive_more = { workspace = true, default-features = true }
+
 # Local
 cord-primitives = { workspace = true }
 identifier = { workspace = true }

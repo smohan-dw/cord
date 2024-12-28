@@ -93,14 +93,14 @@ pub use pallet_sudo::Call as SudoCall;
 pub use sp_runtime::BuildStorage;
 
 use cord_runtime_common::{
-	self as runtime_common, impl_runtime_weights, prod_or_fast, BalanceToU256, BlockHashCount,
-	BlockLength, CurrencyToVote, U256ToBalance,
+	self as runtime_common, elections, impl_runtime_weights, prod_or_fast, BalanceToU256,
+	BlockHashCount, BlockLength, CurrencyToVote, U256ToBalance,
 };
 
 /// Constant values used within the runtime.
 use cord_weave_runtime_constants::{currency::*, fee::WeightToFee, time::*};
 
-use runtime_common::{DealWithFees, SlowAdjustingFeeUpdate};
+use runtime_common::{DealWithFees, SendFeesToTreasury, SlowAdjustingFeeUpdate};
 use sp_runtime::generic::Era;
 use sp_staking::SessionIndex;
 use sp_std::{cmp::Ordering, prelude::*};
@@ -119,6 +119,9 @@ mod weights;
 
 /// Runtime API definition for assets.
 pub mod assets_api;
+
+/// Network Resistrar
+mod networks_registrar;
 
 // Make the WASM binary available.
 #[cfg(feature = "std")]
@@ -626,7 +629,7 @@ generate_solution_type!(
 pub struct OnChainSeqPhragmen;
 impl onchain::Config for OnChainSeqPhragmen {
 	type System = Runtime;
-	type Solver = SequentialPhragmen<AccountId, cord_runtime_common::elections::OnChainAccuracy>;
+	type Solver = SequentialPhragmen<AccountId, elections::OnChainAccuracy>;
 	type DataProvider = Staking;
 	type WeightInfo = weights::frame_election_provider_support::WeightInfo<Runtime>;
 	type MaxWinners = MaxActiveValidators;
@@ -696,7 +699,7 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
 	type ForceOrigin = EnsureRootOrCouncilApproval;
 	type MaxWinners = MaxActiveValidators;
 	type ElectionBounds = ElectionBoundsMultiPhase;
-	type BenchmarkingConfig = cord_runtime_common::elections::BenchmarkConfig;
+	type BenchmarkingConfig = elections::BenchmarkConfig;
 	type WeightInfo = weights::pallet_election_provider_multi_phase::WeightInfo<Self>;
 }
 
@@ -800,7 +803,7 @@ impl pallet_membership::Config<pallet_membership::Instance2> for Runtime {
 parameter_types! {
 	pub TreasuryAccount: AccountId = Treasury::account_id();
 	pub const SpendPeriod: BlockNumber = 1 * DAYS;
-	pub const Burn: Permill = Permill::from_percent(50);
+	pub const Burn: Permill = Permill::from_percent(1);
 	pub const TipCountdown: BlockNumber = 1 * DAYS;
 	pub const TipFindersFee: Percent = Percent::from_percent(20);
 	pub const TipReportDepositBase: Balance = 1 * UNITS;
@@ -819,7 +822,7 @@ impl pallet_treasury::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	type SpendPeriod = SpendPeriod;
 	type Burn = Burn;
-	type BurnDestination = ();
+	type BurnDestination = Treasury;
 	type SpendFunds = ();
 	type WeightInfo = weights::pallet_treasury::WeightInfo<Runtime>;
 	type MaxApprovals = MaxApprovals;
@@ -1318,6 +1321,22 @@ impl pallet_statement::Config for Runtime {
 }
 
 parameter_types! {
+	pub const RegistrationPeriod: BlockNumber = YEAR;
+	pub const MaxEntriesPerBlock: u32 = 2_000;
+	pub const RegistrationFee: Balance = 100_000 * UNITS;
+}
+
+impl networks_registrar::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type Currency = Balances;
+	type RegistrationFee = RegistrationFee;
+	type RegistrationPeriod = RegistrationPeriod;
+	type MaxEntriesPerBlock = MaxEntriesPerBlock;
+	type FeeCollector = SendFeesToTreasury<Self>;
+	type WeightInfo = weights::runtime_networks_registrar::WeightInfo<Runtime>;
+}
+
+parameter_types! {
 	pub MbmServiceWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
 }
 
@@ -1463,6 +1482,9 @@ mod runtime {
 
 	#[runtime::pallet_index(45)]
 	pub type Statement = pallet_statement::Pallet<Runtime>;
+
+	#[runtime::pallet_index(46)]
+	pub type Registrar = networks_registrar::Pallet<Runtime>;
 
 	#[runtime::pallet_index(50)]
 	pub type StateTrieMigration = pallet_state_trie_migration::Pallet<Runtime>;
