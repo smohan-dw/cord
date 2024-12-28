@@ -1768,14 +1768,15 @@ version = "0.9.5"
 dependencies = [
  "sp-core",
  "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
 name = "cord-runtime-common"
 version = "0.9.5"
 dependencies = [
+ "bounded-collections",
  "cord-primitives",
+ "derive_more 0.99.18",
  "frame-benchmarking",
  "frame-support",
  "frame-support-test",
@@ -1793,6 +1794,7 @@ dependencies = [
  "pallet-treasury",
  "parity-scale-codec",
  "scale-info",
+ "serde",
  "serde_json",
  "sp-core",
  "sp-keyring",
@@ -1800,6 +1802,7 @@ dependencies = [
  "sp-runtime",
  "sp-staking",
  "sp-std",
+ "sp-weights",
  "static_assertions",
 ]
 
@@ -1988,6 +1991,7 @@ dependencies = [
  "cord-primitives",
  "cord-runtime-common",
  "cord-weave-runtime-constants",
+ "derive_more 0.99.18",
  "frame-benchmarking",
  "frame-benchmarking-pallet-pov",
  "frame-election-provider-support",

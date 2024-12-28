@@ -27,7 +27,9 @@ use alloc::{str, vec::Vec};
 // use blake2_rfc::blake2b::{Blake2b, Blake2bResult};
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{ensure, sp_runtime::RuntimeDebug, traits::ConstU32, BoundedVec};
+// use sc_chain_spec::Properties;
 use scale_info::TypeInfo;
+// use serde_json::Value;
 
 /// CORD Identifier Prefix
 #[cfg(feature = "serde")]
@@ -294,3 +296,11 @@ impl AsRef<[u8]> for Ss58Identifier {
 		&self.0[..]
 	}
 }
+
+// pub fn get_ss58_prefix(properties: &Properties) -> u8 {
+// 	properties
+// 		.get_key_value("ss58prefix")
+// 		.and_then(|(_, value)| value.as_u64())
+// 		.map(|prefix| prefix as u8)
+// 		.unwrap_or(1)
+// }
