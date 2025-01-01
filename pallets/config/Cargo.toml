@@ -19,12 +19,14 @@ maplit = { workspace = true }
 codec = { features = ["derive"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
 cord-primitives = { workspace = true }
+fluent-uri = { workspace = true }
+serde = { optional = true, features = ["alloc", "derive"], workspace = true }
 
 # Substrate dependencies
 frame-system = { workspace = true }
 frame-support = { workspace = true }
 sp-runtime = { workspace = true }
-sp-std = { workspace = true }
+cord-uri = { workspace = true }
 sp-core = { optional = true, workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 
@@ -34,22 +36,24 @@ runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"frame-support/runtime-benchmarks"
+	"frame-support/runtime-benchmarks",
 ]
 std = [
 	"codec/std",
 	"scale-info/std",
 	"cord-primitives/std",
+	"cord-uri/std",
 	"frame-system/std",
 	"frame-benchmarking?/std",
 	"sp-runtime/std",
 	"sp-core/std",
-	"sp-std/std",
+	"serde/std",
 	"frame-support/std",
-	"sp-io/std"
+	"fluent-uri/std",
+	"sp-io/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]

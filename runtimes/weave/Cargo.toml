@@ -35,10 +35,11 @@ derive_more = { workspace = true, default-features = true }
 
 # Local
 cord-primitives = { workspace = true }
-identifier = { workspace = true }
 cord-weave-runtime-constants = { workspace = true }
 cord-runtime-common = { workspace = true }
-# pallet-assets-runtime-api = { workspace = true }
+pallet-config = { workspace = true }
+cord-uri = { workspace = true }
+# hex = { workspace = true }
 
 # Substrate
 sp-api = { workspace = true }
@@ -165,6 +166,8 @@ std = [
 	"codec/std",
 	"cord-primitives/std",
 	"cord-runtime-common/std",
+	"cord-uri/std",
+	# "cord-uri-runtime-api/std",
 	"cord-weave-runtime-constants/std",
 	"frame-benchmarking-pallet-pov/std",
 	"frame-benchmarking/std",
@@ -177,7 +180,7 @@ std = [
 	"frame-system-rpc-runtime-api/std",
 	"frame-system/std",
 	"frame-try-runtime/std",
-	"identifier/std",
+	# "identifier/std",
 	"log/std",
 	"pallet-assets/std",
 	"pallet-asset-conversion/std",
@@ -194,6 +197,7 @@ std = [
 	"pallet-balances/std",
 	"pallet-beefy/std",
 	"pallet-beefy-mmr/std",
+	"pallet-config/std",
 	"pallet-collective/std",
 	"pallet-contracts/std",
 	"pallet-election-provider-multi-phase/std",
@@ -329,7 +333,7 @@ try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
 	"frame-try-runtime/try-runtime",
-	"identifier/try-runtime",
+	# "identifier/try-runtime",
 	"pallet-assets/try-runtime",
 	"pallet-asset-conversion-ops/try-runtime",
 	"pallet-asset-conversion-tx-payment/try-runtime",

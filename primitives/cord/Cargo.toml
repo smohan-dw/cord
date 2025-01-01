@@ -12,9 +12,22 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
+codec = { features = ["derive"], workspace = true }
+derive_more = { workspace = true, default-features = true }
+scale-info = { features = ["derive", "serde"], workspace = true }
 sp-core = { features = ["serde"], workspace = true }
 sp-runtime = { features = ["serde"], workspace = true }
 
+# all optional crates.
+serde = { features = ["alloc", "derive"], workspace = true }
+
 [features]
 default = ["std"]
-std = ["sp-core/std", "sp-runtime/std"]
+# std = ["sp-core/std", "sp-runtime/std", "sp-std/std"]
+std = [
+	"codec/std",
+	"scale-info/std",
+	"serde/std",
+	"sp-core/std",
+	"sp-runtime/std",
+]

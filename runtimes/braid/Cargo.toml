@@ -37,6 +37,7 @@ identifier = { workspace = true }
 network-membership = { workspace = true }
 cord-braid-runtime-constants = { workspace = true, optional = true }
 cord-runtime-common = { workspace = true }
+cord-uri = { workspace = true }
 
 pallet-did = { workspace = true }
 pallet-did-name = { workspace = true }
@@ -130,6 +131,7 @@ std = [
 	"sp-authority-discovery/std",
 	"cord-primitives/std",
 	"cord-runtime-common/std",
+	"cord-uri/std",
 	"network-membership/std",
 	"authority-membership/std",
 	"frame-system-benchmarking?/std",
