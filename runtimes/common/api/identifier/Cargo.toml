@@ -1,6 +1,6 @@
 [package]
-name = "pallet-assets-runtime-api"
-description = "Runtime APIs for dealing with Assets."
+name = "cord-uri-runtime-api"
+description = "Runtime APIs for decoding CORD URIs."
 version.workspace = true
 authors.workspace = true
 edition.workspace = true
@@ -15,15 +15,16 @@ workspace = true
 # External dependencies
 codec = { features = ["derive"], workspace = true }
 scale-info = { features = ["derive"], workspace = true }
+# serde = { optional = true, features = ["alloc", "derive"], workspace = true }
 
 # Internal dependencies
-pallet-assets = { workspace = true }
+# cord-uri = { workspace = true, default-features = true }
 
 # Substrate
 sp-api = { workspace = true }
-sp-std = { workspace = true }
 frame-support = { workspace = true }
 frame-system = { workspace = true }
+# sp-std = { workspace = true }
 
 [features]
 default = ["std"]
@@ -32,7 +33,8 @@ std = [
 	"frame-system/std",
 	"codec/std",
 	"sp-api/std",
-	"sp-std/std",
+	# "sp-std/std",
+	# "serde/std",
 	"scale-info/std",
-	"pallet-assets/std",
+	# "cord-uri/std",
 ]

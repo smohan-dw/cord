@@ -29,10 +29,12 @@ members = [
 	"pallets/statement",
 	"primitives/cord",
 	"primitives/identifier",
+	"primitives/corduri",
 	"primitives/network-membership",
 	"runtimes/common",
 	"runtimes/common/api/assets",
 	"runtimes/common/api/did",
+	"runtimes/common/api/identifier",
 	"runtimes/common/api/weight",
 	"runtimes/common/authorities",
 	"runtimes/braid/",
@@ -836,6 +838,8 @@ zstd = { version = "0.12.4", default-features = false }
 # local dependencies
 authority-membership = { path = "runtimes/common/authorities", default-features = false }
 identifier = { package = "cord-identifier", path = "primitives/identifier", default-features = false }
+cord-uri = { path = "primitives/corduri", default-features = false }
+cord-uri-runtime-api = { path = "runtimes/common/api/identifier", default-features = false }
 cord-node-cli = { path = "node/cli", default-features = false }
 cord-primitives = { path = "primitives/cord", default-features = false }
 network-membership = { path = "primitives/network-membership", default-features = false }

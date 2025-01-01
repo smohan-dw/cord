@@ -21,10 +21,12 @@
 #![recursion_limit = "512"]
 
 extern crate alloc;
-
+use alloc::string::String;
 use codec::Encode;
 pub use cord_primitives::{AccountId, AccountPublic, Signature};
 use cord_primitives::{AccountIndex, Balance, BlockNumber, Hash, Moment, Nonce};
+use cord_uri::Identifier as CordIdentifier;
+use cord_uri::{DecodedIdentifier, Ss58Identifier};
 use frame_election_provider_support::{
 	bounds::ElectionBoundsBuilder, generate_solution_type, onchain, SequentialPhragmen,
 };
@@ -48,7 +50,6 @@ use frame_support::{
 use frame_system::{
 	EnsureRoot, EnsureRootWithSuccess, EnsureSigned, EnsureSignedBy, EnsureWithSuccess,
 };
-pub use identifier::Ss58Identifier;
 use pallet_asset_conversion::{AccountIdConverter, Ascending, Chain, WithFirstAsset};
 use pallet_asset_conversion_tx_payment::SwapAssetAdapter;
 pub use pallet_election_provider_multi_phase::{Call as EPMCall, GeometricDepositBase};
@@ -78,6 +79,7 @@ use sp_runtime::{
 	transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
 	ApplyExtrinsicResult, FixedU128, Perbill, Percent, Permill,
 };
+
 #[cfg(any(feature = "std", test))]
 use sp_version::NativeVersion;
 use sp_version::RuntimeVersion;
@@ -119,6 +121,10 @@ mod weights;
 
 /// Runtime API definition for assets.
 pub mod assets_api;
+
+/// Runtime API definition for identifier.
+pub mod identifier_api;
+// pub use identifier_api::{DecodedIdentifierApi, IdentifierApi};
 
 /// Network Resistrar
 mod networks_registrar;
@@ -1199,9 +1205,9 @@ parameter_types! {
 	pub const MaxEventsHistory: u32 = u32::MAX;
 }
 
-impl identifier::Config for Runtime {
-	type MaxEventsHistory = MaxEventsHistory;
-}
+// impl identifier::Config for Runtime {
+// 	type MaxEventsHistory = MaxEventsHistory;
+// }
 
 impl pallet_remark::Config for Runtime {
 	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
@@ -1335,6 +1341,14 @@ impl networks_registrar::Config for Runtime {
 	type FeeCollector = SendFeesToTreasury<Self>;
 	type WeightInfo = weights::runtime_networks_registrar::WeightInfo<Runtime>;
 }
+
+impl pallet_config::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type CordIdentifier = Identifier;
+	type DefaultNetworkId = ConstU32<1000>;
+}
+
+impl cord_uri::Config for Runtime {}
 
 parameter_types! {
 	pub MbmServiceWeight: Weight = Perbill::from_percent(80) * BlockWeights::get().max_block;
@@ -1511,7 +1525,10 @@ mod runtime {
 	pub type FastUnstake = pallet_fast_unstake::Pallet<Runtime>;
 
 	#[runtime::pallet_index(70)]
-	pub type Identifier = identifier::Pallet<Runtime>;
+	pub type Identifier = cord_uri::Pallet<Runtime>;
+
+	#[runtime::pallet_index(80)]
+	pub type NetworkParameters = pallet_config::Pallet<Runtime>;
 
 	#[runtime::pallet_index(100)]
 	pub type MultiBlockMigrations = pallet_migrations::Pallet<Runtime>;
@@ -1885,6 +1902,25 @@ impl_runtime_apis! {
 	{
 		fn account_balances(account: AccountId) -> Vec<(u32, Balance)> {
 			Assets::account_balances(account)
+		}
+	}
+
+	impl identifier_api::IdentifierApi<Block> for Runtime {
+		fn decode_identifier(identifier: Vec<u8>) -> Option<identifier_api::DecodedIdentifierApi> {
+
+			let ss58_id = Ss58Identifier::try_from(identifier).ok()?;
+
+			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
+
+			Some(identifier_api::DecodedIdentifierApi {
+				network: decoded.network,
+				pallet: decoded.pallet,
+				digest: decoded.digest,
+			})
+		}
+
+		fn resolve_pallet(index: u16) -> Option<String> {
+			Identifier::resolve_pallet_name(index).ok()
 		}
 	}
 

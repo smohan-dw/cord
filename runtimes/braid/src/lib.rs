@@ -836,7 +836,14 @@ impl pallet_network_score::Config for Runtime {
 	type WeightInfo = weights::pallet_network_score::WeightInfo<Runtime>;
 }
 
-impl pallet_config::Config for Runtime {}
+impl pallet_config::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type CordIdentifier = IdentifierV2;
+	type DefaultNetworkId = ConstU32<1000>;
+}
+
+impl cord_uri::Config for Runtime {}
+
 impl pallet_insecure_randomness_collective_flip::Config for Runtime {}
 impl pallet_root_testing::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
@@ -1058,6 +1065,9 @@ mod runtime {
 
 	#[runtime::pallet_index(83)]
 	pub type SchemaAccounts = pallet_schema_accounts::Pallet<Runtime>;
+
+	#[runtime::pallet_index(84)]
+	pub type IdentifierV2 = cord_uri::Pallet<Runtime>;
 
 	#[runtime::pallet_index(101)]
 	pub type Contracts = pallet_contracts::Pallet<Runtime>;
