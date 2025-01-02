@@ -32,6 +32,8 @@ primitive-types = { features = [
 	"scale-info",
 ], workspace = true }
 derive_more = { workspace = true, default-features = true }
+bs58 = { workspace = true }
+blake2 = { workspace = true }
 
 # Local
 cord-primitives = { workspace = true }
@@ -163,6 +165,8 @@ substrate-wasm-builder = { workspace = true, optional = true, default-features =
 default = ['std']
 no_std = []
 std = [
+	"bs58/std",
+	"blake2/std",
 	"codec/std",
 	"cord-primitives/std",
 	"cord-runtime-common/std",
