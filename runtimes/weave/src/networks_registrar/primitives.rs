@@ -46,7 +46,7 @@ use sp_core::{RuntimeDebug, TypeId};
 pub struct Id(u32);
 
 impl TypeId for Id {
-	const TYPE_ID: [u8; 4] = *b"para";
+	const TYPE_ID: [u8; 4] = *b"cOrd";
 }
 
 impl From<Id> for u32 {
@@ -128,8 +128,8 @@ impl Id {
 pub struct NetworkToken<T: Config>(pub(crate) BoundedVec<u8, ConstU32<142>>, PhantomData<T>);
 
 const PREFIX: &[u8] = b"NIDV01";
-const R_IDENT: u16 = 24;
-const N_IDENT: u16 = 21;
+const R_IDENT: u16 = 8381;
+const N_IDENT: u16 = 2969;
 
 impl<T: Config> NetworkToken<T> {
 	/// Generate a checksum using Blake2b hash.
@@ -153,21 +153,18 @@ impl<T: Config> NetworkToken<T> {
 		use bs58;
 
 		let ident_value = if reserve { R_IDENT } else { N_IDENT };
-
 		let ident = Self::compact_encode(ident_value & 0b0011_1111_1111_1111)?;
-		let nid_inner: u16 = network_id.inner() as u16 & 0b0011_1111_1111_1111;
-		let nid = Self::compact_encode(nid_inner)?;
+		let nid_inner = network_id.inner();
 
 		let mut buffer = Vec::new();
 		buffer.extend(ident);
 		buffer.extend(cord_genesis_hash.as_ref());
-		buffer.extend(nid);
+		buffer.extend(&nid_inner.to_le_bytes());
 		buffer.extend(network_genesis_hash.as_ref());
 		buffer.extend(account_id.encode());
 
 		let checksum = &Self::checksum(&buffer)[..2];
 		buffer.extend(checksum);
-
 		let encoded = bs58::encode(&buffer).into_string();
 
 		Ok(Self(
@@ -193,8 +190,13 @@ impl<T: Config> NetworkToken<T> {
 			.map_err(|_| Error::<T>::InvalidCordGenesisHead)?;
 		offset = cord_genesis_hash_end;
 
-		let (nid, nid_offset) = Self::compact_decode(&decoded[offset..])?;
-		offset += nid_offset;
+		let nid_offset = offset + 4;
+		let nid = u32::from_le_bytes(
+			decoded[offset..nid_offset]
+				.try_into()
+				.map_err(|_| Error::<T>::InvalidNetworkId)?,
+		);
+		offset = nid_offset;
 
 		let network_genesis_hash_end = offset + 32;
 		ensure!(network_genesis_hash_end <= decoded.len(), Error::<T>::InvalidNetworkGenesisHead);
@@ -213,7 +215,7 @@ impl<T: Config> NetworkToken<T> {
 		let expected_checksum = &Self::checksum(&decoded[..decoded.len() - 2])[..2];
 		ensure!(checksum == expected_checksum, Error::<T>::InvalidChecksum);
 
-		Ok((NetworkId::from(nid as u32), cord_genesis_hash, network_genesis_hash, account_id))
+		Ok((NetworkId::from(nid), cord_genesis_hash, network_genesis_hash, account_id))
 	}
 
 	fn compact_encode(value: u16) -> Result<Vec<u8>, Error<T>> {

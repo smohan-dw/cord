@@ -70,15 +70,3 @@ std = [
 	"sp-storage/std",
 	"log/std",
 ]
-
-
-# # Serde support without relying on std features.
-# serde = [
-# 	"blake2",
-# 	"bs58/alloc",
-# 	"dep:serde",
-# 	"impl-serde",
-# 	"primitive-types/serde_no_std",
-# 	"scale-info/serde",
-# 	"sp-storage/serde",
-# ]

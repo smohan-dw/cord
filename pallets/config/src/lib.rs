@@ -193,7 +193,7 @@ pub mod pallet {
 				Error::<T>::NetworkConfigAlreadyAdded
 			);
 
-			let (t_network_id, _t_cord_genesis_hash, t_network_genesis_hash, t_account_id) =
+			let (t_network_id, t_cord_genesis_hash, t_network_genesis_hash, t_account_id) =
 				Self::resolve(&token)?;
 			let genesis_hash = <frame_system::Pallet<T>>::block_hash(BlockNumberFor::<T>::zero());
 			ensure!(t_network_genesis_hash == genesis_hash, Error::<T>::InvalidNetworkGenesisHead);
@@ -433,7 +433,7 @@ pub mod pallet {
 			ensure!(decoded.len() >= 2 && decoded.len() <= 142, Error::<T>::InvalidToken);
 
 			let (ident, mut offset) = Self::compact_decode(&decoded)?;
-			ensure!(ident == 21 || ident == 24, Error::<T>::InvalidToken);
+			ensure!(ident == 8381 || ident == 2969, Error::<T>::InvalidToken);
 
 			let cord_genesis_hash_end = offset + 32;
 			ensure!(cord_genesis_hash_end <= decoded.len(), Error::<T>::InvalidCordGenesisHead);
@@ -442,8 +442,14 @@ pub mod pallet {
 				.map_err(|_| Error::<T>::InvalidCordGenesisHead)?;
 			offset = cord_genesis_hash_end;
 
-			let (nid, nid_offset) = Self::compact_decode(&decoded[offset..])?;
-			offset += nid_offset;
+			let nid_offset = offset + 4;
+			let nid = u32::from_le_bytes(
+				decoded[offset..nid_offset]
+					.try_into()
+					.map_err(|_| Error::<T>::InvalidNetworkId)?,
+			);
+			// let (nid, nid_offset) = Self::compact_decode(&decoded[offset..])?;
+			offset = nid_offset;
 
 			let network_genesis_hash_end = offset + 32;
 			ensure!(
@@ -467,7 +473,7 @@ pub mod pallet {
 			let expected_checksum = &Self::checksum(&decoded[..decoded.len() - 2])[..2];
 			ensure!(checksum == expected_checksum, Error::<T>::InvalidChecksum);
 
-			Ok((NetworkId::from(nid as u32), cord_genesis_hash, network_genesis_hash, account_id))
+			Ok((NetworkId::from(nid), cord_genesis_hash, network_genesis_hash, account_id))
 		}
 
 		fn compact_decode(data: &[u8]) -> Result<(u16, usize), Error<T>> {
