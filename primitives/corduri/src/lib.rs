@@ -177,6 +177,7 @@ impl Ss58Identifier {
 			decoded.len() >= 2 && decoded.len() <= 53,
 			IdentifierError::InvalidIdentifierLength
 		);
+		log::info!("Decoded token: {:?}", decoded);
 
 		let (_ident, mut offset) = Self::compact_decode(&decoded)?;
 

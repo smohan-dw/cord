@@ -24,17 +24,16 @@ extern crate alloc;
 pub mod primitives;
 pub mod traits;
 
-pub use primitives::{Id as NetworkId, LOWEST_PUBLIC_ID};
+pub use primitives::{Id as NetworkId, NetworkToken, LOWEST_PUBLIC_ID};
 pub use traits::Registrar;
 
-use alloc::vec;
-use alloc::vec::Vec;
-use codec::{Decode, Encode};
+use alloc::{fmt, vec, vec::Vec};
+use codec::{Decode, Encode, MaxEncodedLen};
 use cord_primitives::StatusOf;
 use frame_support::{
 	dispatch::DispatchResult,
 	ensure,
-	pallet_prelude::Weight,
+	pallet_prelude::{PhantomData, Weight},
 	traits::{
 		fungible::{Balanced, Credit, Inspect},
 		tokens::{Fortitude, Precision, Preservation},
@@ -43,12 +42,16 @@ use frame_support::{
 };
 use frame_system::{self, ensure_root, ensure_signed, pallet_prelude::BlockNumberFor};
 use scale_info::TypeInfo;
-use sp_runtime::{traits::Zero, RuntimeDebug};
+use sp_runtime::{
+	traits::{Hash, Zero},
+	RuntimeDebug,
+};
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, Default, RuntimeDebug, TypeInfo)]
-pub struct NetworkInfo<Account, Hash, StatusOf> {
+#[derive(Encode, Decode, MaxEncodedLen, TypeInfo, RuntimeDebug, PartialEq, Eq, Clone)]
+pub struct NetworkInfo<Account, Hash, NetworkToken, StatusOf> {
 	pub(crate) manager: Account,
-	pub genesis_head: Option<Hash>,
+	pub genesis_head: Hash,
+	pub token: NetworkToken,
 	pub active: StatusOf,
 }
 
@@ -124,9 +127,9 @@ pub mod pallet {
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		Registered { network_id: NetworkId, manager: CordAccountOf<T> },
+		Registered { network_id: NetworkId, manager: CordAccountOf<T>, token: NetworkToken<T> },
 		Deregistered { network_id: NetworkId },
-		Reserved { network_id: NetworkId, who: CordAccountOf<T> },
+		Reserved { network_id: NetworkId, who: CordAccountOf<T>, token: NetworkToken<T> },
 		RenewalScheduled { network_id: NetworkId },
 		Renewed { network_id: NetworkId },
 		Expired { network_id: NetworkId },
@@ -154,6 +157,16 @@ pub mod pallet {
 		InActiveRegistration,
 		/// Invalid Genesis hash/head.
 		InvalidGenesisHash,
+		InvalidToken,
+		InvalidPrefix,
+		InvalidCordGenesisHead,
+		InvalidNetworkGenesisHead,
+		InvalidAccountId,
+		InvalidChecksum,
+		CordGenesisMismatch,
+		BadOrigin,
+		TokenGenerationFailed,
+		TokenMismatch,
 	}
 
 	/// Netoworks - maps a network to it's associated properties.
@@ -162,7 +175,7 @@ pub mod pallet {
 		_,
 		Twox64Concat,
 		NetworkId,
-		NetworkInfo<CordAccountOf<T>, Option<HashOf<T>>, StatusOf>,
+		NetworkInfo<CordAccountOf<T>, HashOf<T>, NetworkToken<T>, StatusOf>,
 	>;
 
 	/// Track the network IDs.
@@ -221,20 +234,56 @@ pub mod pallet {
 		#[pallet::weight(<T as Config>::WeightInfo::register())]
 		pub fn register(
 			origin: OriginFor<T>,
-			who: Option<CordAccountOf<T>>,
-			id: NetworkId,
-			genesis_head: HashOf<T>,
+			token: NetworkToken<T>,
+			network_genesis_head: HashOf<T>,
 		) -> DispatchResult {
-			match who {
-				Some(owner) => {
-					ensure_root(origin)?;
-					Self::do_register(owner, id, genesis_head)?;
-				},
-				None => {
-					let caller = ensure_signed(origin)?;
-					Self::do_register(caller, id, genesis_head)?;
-				},
-			}
+			let (reserve_id, cord_genesis_hash, network_genesis_hash_from_token, account_id) =
+				token.resolve().map_err(|_| Error::<T>::InvalidToken)?;
+
+			let caller = if account_id == ensure_signed(origin.clone())? {
+				account_id.clone()
+			} else {
+				ensure_root(origin)?;
+				account_id.clone()
+			};
+
+			let network_data = Networks::<T>::get(reserve_id).ok_or(Error::<T>::NotReserved)?;
+
+			let genesis_hash = <frame_system::Pallet<T>>::block_hash(BlockNumberFor::<T>::zero());
+			ensure!(genesis_hash == cord_genesis_hash, Error::<T>::CordGenesisMismatch);
+
+			let reserve_genesis_hash = <T as frame_system::Config>::Hashing::hash(
+				&[&reserve_id.encode()[..], &caller.encode()[..]].concat()[..],
+			);
+			ensure!(reserve_genesis_hash == network_genesis_hash_from_token, Error::<T>::BadOrigin);
+
+			ensure!(network_data.token == token, Error::<T>::TokenMismatch);
+			ensure!(network_genesis_head != T::Hash::default(), Error::<T>::InvalidGenesisHash);
+			ensure!(account_id == network_data.manager, Error::<T>::BadOrigin);
+
+			let network_token = NetworkToken::generate(
+				reserve_id,
+				&cord_genesis_hash,
+				&network_genesis_head,
+				&caller,
+				false,
+			)
+			.map_err(|_| Error::<T>::TokenGenerationFailed)?;
+
+			let updated_info = NetworkInfo {
+				manager: network_data.manager,
+				genesis_head: network_genesis_head,
+				token: network_token.clone(),
+				active: true,
+			};
+
+			Networks::<T>::insert(reserve_id, updated_info);
+
+			Self::deposit_event(Event::<T>::Registered {
+				network_id: reserve_id,
+				manager: caller,
+				token: network_token,
+			});
 
 			Ok(())
 		}
@@ -289,6 +338,7 @@ pub mod pallet {
 
 			// Reserve the ID and update the next free ID
 			Self::do_reserve(who, id)?;
+
 			NextFreeNetworkId::<T>::set(id + 1);
 			Ok(())
 		}
@@ -357,7 +407,21 @@ impl<T: Config> Pallet<T> {
 
 		T::FeeCollector::on_unbalanced(imbalance);
 
-		let info = NetworkInfo { manager: who.clone(), genesis_head: None, active: false };
+		let genesis_hash = <frame_system::Pallet<T>>::block_hash(BlockNumberFor::<T>::zero());
+		// let reserve_genesis_hash = <T as frame_system::Config>::Hashing::hash(&(&who.encode()[..]));
+		let reserve_genesis_hash = <T as frame_system::Config>::Hashing::hash(
+			&[&id.encode()[..], &who.encode()[..]].concat()[..],
+		);
+		let token =
+			NetworkToken::<T>::generate(id, &genesis_hash, &reserve_genesis_hash, &who, true)
+				.map_err(|_| Error::<T>::InvalidToken)?;
+
+		let info = NetworkInfo {
+			manager: who.clone(),
+			genesis_head: reserve_genesis_hash,
+			token: token.clone(),
+			active: false,
+		};
 
 		let _ = ExpiresOn::<T>::try_mutate(expire_on, |networks| {
 			networks
@@ -366,32 +430,34 @@ impl<T: Config> Pallet<T> {
 		});
 
 		Networks::<T>::insert(id, info);
-		Self::deposit_event(Event::<T>::Reserved { network_id: id, who });
+		Self::deposit_event(Event::<T>::Reserved { network_id: id, who, token });
 		Ok(())
 	}
 
-	/// Attempt to register a new Network genesis hash
-	fn do_register(
-		who: CordAccountOf<T>,
-		id: NetworkId,
-		genesis_head: HashOf<T>,
-	) -> DispatchResult {
-		let network_data = Networks::<T>::get(id).ok_or(Error::<T>::NotReserved)?;
-		ensure!(network_data.manager == who, Error::<T>::NotOwner);
-		ensure!(network_data.genesis_head.is_none(), Error::<T>::AlreadyRegistered);
-		ensure!(genesis_head != T::Hash::default(), Error::<T>::InvalidGenesisHash);
+	// /// Attempt to register a new Network genesis hash
+	// fn do_register(
+	// 	who: CordAccountOf<T>,
+	// 	id: NetworkId,
+	// 	genesis_head: HashOf<T>,
+	// ) -> DispatchResult {
+	// 	let network_data = Networks::<T>::get(id).ok_or(Error::<T>::NotReserved)?;
+	// 	ensure!(network_data.manager == who, Error::<T>::NotOwner);
+	// 	ensure!(network_data.genesis_head.is_none(), Error::<T>::AlreadyRegistered);
+	// 	ensure!(genesis_head != T::Hash::default(), Error::<T>::InvalidGenesisHash);
 
-		let info: NetworkInfo<CordAccountOf<T>, Option<HashOf<T>>, bool> = NetworkInfo {
-			manager: who.clone(),
-			genesis_head: Some(genesis_head.into()),
-			active: true,
-		};
+	// 	let info: NetworkInfo<CordAccountOf<T>, Option<HashOf<T>>, NetworkToken<T>, bool> =
+	// 		NetworkInfo {
+	// 			// manager: who.clone(),
+	// 			genesis_head: Some(genesis_head.into()),
+	// 			active: true,
+	// 			..network_data
+	// 		};
 
-		Networks::<T>::insert(id, info);
+	// 	Networks::<T>::insert(id, info);
 
-		Self::deposit_event(Event::<T>::Registered { network_id: id, manager: who });
-		Ok(())
-	}
+	// 	Self::deposit_event(Event::<T>::Registered { network_id: id, manager: who });
+	// 	Ok(())
+	// }
 
 	/// Attempt to renew an expired network registration.
 	fn do_renew(who: CordAccountOf<T>, id: NetworkId) -> DispatchResult {
@@ -434,8 +500,7 @@ impl<T: Config> Pallet<T> {
 
 		T::FeeCollector::on_unbalanced(imbalance);
 
-		let info: NetworkInfo<CordAccountOf<T>, Option<HashOf<T>>, bool> =
-			NetworkInfo { active: true, ..network_data };
+		let info = NetworkInfo { active: true, ..network_data };
 
 		Networks::<T>::insert(id, info);
 
@@ -447,8 +512,7 @@ impl<T: Config> Pallet<T> {
 		let schedule_expiry = expire_on + T::RegistrationPeriod::get();
 
 		if let Some(network_data) = Networks::<T>::get(network) {
-			let info: NetworkInfo<CordAccountOf<T>, Option<HashOf<T>>, bool> =
-				NetworkInfo { active: true, ..network_data };
+			let info = NetworkInfo { active: true, ..network_data };
 			Networks::<T>::insert(network, info);
 		}
 		let _ = ExpiresOn::<T>::try_mutate(schedule_expiry, |networks| {
@@ -467,8 +531,7 @@ impl<T: Config> Pallet<T> {
 			call_weight += T::WeightInfo::renew();
 		} else {
 			if let Some(network_data) = Networks::<T>::get(network) {
-				let info: NetworkInfo<CordAccountOf<T>, Option<HashOf<T>>, bool> =
-					NetworkInfo { active: false, ..network_data };
+				let info = NetworkInfo { active: false, ..network_data };
 				Networks::<T>::insert(network, info); // Update the network as inactive
 				Self::deposit_event(Event::Expired { network_id: network });
 				call_weight += T::WeightInfo::expire();

@@ -32,8 +32,6 @@ sp-runtime-interface = { workspace = true }
 sp-storage = { workspace = true }
 cord-primitives = { workspace = true }
 hex = { workspace = true }
-# rand = { workspace = true, features = ["std_rng"] }
-# rand = { workspace = true, default-features = true }
 
 # Substrate dependencies
 frame-support = { workspace = true }
@@ -53,7 +51,6 @@ std = [
 	"scale-info/std",
 	"frame-support/std",
 	"frame-system/std",
-	# "rand/std",
 	"sp-runtime/std",
 	"sp-io/std",
 	"sp-std/std",
