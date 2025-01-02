@@ -7079,12 +7079,15 @@ dependencies = [
 name = "pallet-config"
 version = "0.9.5"
 dependencies = [
+ "blake2 0.10.6",
+ "bs58 0.5.1",
  "cord-primitives",
  "cord-uri",
  "fluent-uri",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "log",
  "maplit",
  "parity-scale-codec",
  "scale-info",

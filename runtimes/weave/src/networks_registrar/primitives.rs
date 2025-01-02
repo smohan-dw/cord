@@ -19,7 +19,6 @@
 use super::*;
 use crate::*;
 use codec::{CompactAs, Decode, Encode, MaxEncodedLen};
-use core::sync::atomic::{AtomicU16, Ordering};
 use networks_registrar::CordAccountOf;
 use scale_info::TypeInfo;
 use sp_core::{RuntimeDebug, TypeId};
@@ -91,9 +90,7 @@ impl From<i32> for Id {
 	}
 }
 
-// System parachain ID is considered `< 2000`.
-// const SYSTEM_INDEX_END: u32 = 1999;
-const PUBLIC_INDEX_START: u32 = 2000;
+const PUBLIC_INDEX_START: u32 = 2001;
 
 /// The ID of the first publicly registrable parachain.
 pub const LOWEST_PUBLIC_ID: Id = Id(PUBLIC_INDEX_START);
@@ -130,7 +127,7 @@ impl Id {
 #[derive(Encode, Decode, MaxEncodedLen, PartialEq, Eq, Clone)]
 pub struct NetworkToken<T: Config>(pub(crate) BoundedVec<u8, ConstU32<142>>, PhantomData<T>);
 
-const PREFIX: &[u8] = b"RSRVIDV01";
+const PREFIX: &[u8] = b"NIDV01";
 const R_IDENT: u16 = 24;
 const N_IDENT: u16 = 21;
 
@@ -172,7 +169,6 @@ impl<T: Config> NetworkToken<T> {
 		buffer.extend(checksum);
 
 		let encoded = bs58::encode(&buffer).into_string();
-		log::info!("Encoded token: {}", encoded);
 
 		Ok(Self(
 			Vec::<u8>::from(encoded).try_into().map_err(|_| Error::<T>::InvalidToken)?,
@@ -183,15 +179,12 @@ impl<T: Config> NetworkToken<T> {
 	pub fn resolve(&self) -> Result<(NetworkId, HashOf<T>, HashOf<T>, CordAccountOf<T>), Error<T>> {
 		use bs58;
 
-		// Decode the Base58-encoded token
 		let decoded = bs58::decode(&self.0).into_vec().map_err(|_| Error::<T>::InvalidToken)?;
 
-		log::info!("Decoded token: {:?}", decoded);
 		ensure!(decoded.len() >= 2 && decoded.len() <= 142, Error::<T>::InvalidToken);
 
 		let (ident, mut offset) = Self::compact_decode(&decoded)?;
 		ensure!(ident == N_IDENT || ident == R_IDENT, Error::<T>::InvalidPrefix);
-		log::info!("Decoded ident: {}", ident);
 
 		let cord_genesis_hash_end = offset + 32;
 		ensure!(cord_genesis_hash_end <= decoded.len(), Error::<T>::InvalidCordGenesisHead);
@@ -199,47 +192,27 @@ impl<T: Config> NetworkToken<T> {
 		let cord_genesis_hash = HashOf::<T>::decode(&mut &*cord_genesis_hash_bytes)
 			.map_err(|_| Error::<T>::InvalidCordGenesisHead)?;
 		offset = cord_genesis_hash_end;
-		log::info!("Decoded cord_genesis_hash: {:?}", cord_genesis_hash);
 
 		let (nid, nid_offset) = Self::compact_decode(&decoded[offset..])?;
 		offset += nid_offset;
-		log::info!("Decoded network ID (nid): {}", nid);
 
 		let network_genesis_hash_end = offset + 32;
 		ensure!(network_genesis_hash_end <= decoded.len(), Error::<T>::InvalidNetworkGenesisHead);
 		let network_genesis_hash_bytes = &decoded[offset..network_genesis_hash_end];
-
 		let network_genesis_hash = HashOf::<T>::decode(&mut &*network_genesis_hash_bytes)
 			.map_err(|_| Error::<T>::InvalidNetworkGenesisHead)?;
-
 		offset = network_genesis_hash_end;
-		log::info!("Decoded network_genesis_hash: {:?}", network_genesis_hash);
 
-		// Extract `account_id` (32 bytes)
 		let account_id_end = offset + 32;
 		ensure!(account_id_end <= decoded.len(), Error::<T>::InvalidAccountId);
 		let account_id_bytes = &decoded[offset..account_id_end];
 		let account_id = CordAccountOf::<T>::decode(&mut &*account_id_bytes)
 			.map_err(|_| Error::<T>::InvalidAccountId)?;
-		// offset = account_id_end;
-		log::info!("Decoded account_id: {:?}", account_id);
 
-		// Verify checksum
 		let checksum = &decoded[decoded.len() - 2..];
 		let expected_checksum = &Self::checksum(&decoded[..decoded.len() - 2])[..2];
 		ensure!(checksum == expected_checksum, Error::<T>::InvalidChecksum);
-		log::info!("Checksum: {:?}, Expected checksum: {:?}", checksum, expected_checksum);
 
-		// Log successful extraction
-		log::info!(
-            "Token successfully verified and extracted: reserve_id={}, cord_genesis_hash={:?}, network_genesis_hash={:?}, account_id={:?}",
-            nid,
-            cord_genesis_hash,
-            network_genesis_hash,
-            account_id
-        );
-
-		// Return extracted elements
 		Ok((NetworkId::from(nid as u32), cord_genesis_hash, network_genesis_hash, account_id))
 	}
 

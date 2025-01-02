@@ -23,9 +23,10 @@
 
 extern crate alloc;
 use alloc::{str, vec::Vec};
+use bs58;
 use codec::{Decode, Encode, MaxEncodedLen};
 use cord_primitives::{Id as NetworkId, NetworkInfoProvider};
-use cord_uri::{Identifier, Ss58Identifier};
+use cord_uri::Ss58Identifier;
 use fluent_uri::Uri;
 use frame_support::{
 	pallet_prelude::*,
@@ -34,27 +35,22 @@ use frame_support::{
 };
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::pallet_prelude::*;
-use sp_runtime::traits::{Hash, Zero};
+use sp_runtime::traits::Zero;
 
 pub use pallet::*;
 
-#[derive(Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, MaxEncodedLen)]
-pub enum NetworkType {
-	Test,
-	Production,
-}
-
-impl Default for NetworkType {
-	fn default() -> Self {
-		NetworkType::Test
-	}
-}
-
 /// Identifier
 pub type IdentifierOf = Ss58Identifier;
+pub(crate) type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
+pub type HashOf<T> = <T as frame_system::Config>::Hash;
+pub(crate) type NetworkName = BoundedVec<u8, ConstU32<64>>;
+pub(crate) type NetworkEndpoints = BoundedVec<BoundedVec<u8, ConstU32<256>>, ConstU32<50>>;
+pub(crate) type NetworkWebsite = Option<BoundedVec<u8, ConstU32<256>>>;
+pub(crate) type NetworkToken = BoundedVec<u8, ConstU32<142>>;
 
 #[frame_support::pallet]
 pub mod pallet {
+
 	use super::*;
 
 	/// The current storage version.
@@ -67,7 +63,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + cord_uri::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		type CordIdentifier: Identifier;
+		type NetworkConfigOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 		#[pallet::constant]
 		type DefaultNetworkId: Get<u32>;
 	}
@@ -75,30 +71,52 @@ pub mod pallet {
 	#[derive(
 		Encode, Decode, Clone, PartialEq, Eq, RuntimeDebug, TypeInfo, Default, MaxEncodedLen,
 	)]
-	pub struct NetworkInfo {
-		pub id: NetworkId,
-		pub name: BoundedVec<u8, ConstU32<64>>,
-		pub mode: NetworkType,
-		pub endpoints: BoundedVec<BoundedVec<u8, ConstU32<256>>, ConstU32<50>>,
-		pub website: Option<BoundedVec<u8, ConstU32<256>>>,
+	pub struct NetworkInfo<NetworkName, NetworkEndpoints, NetworkWebSite, NetworkToken, Account> {
+		pub name: NetworkName,
+		pub endpoints: NetworkEndpoints,
+		pub website: NetworkWebSite,
+		pub token: NetworkToken,
+		pub owner: Account,
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The network information was not found.
 		NetworkInfoNotFound,
+		/// The provided input is invalid or malformed.
 		InvalidInput,
+		/// The provided URI is invalid or cannot be parsed.
 		InvalidUri,
+		/// The identifier length is invalid or exceeds the maximum allowed.
 		InvalidIdentifierLength,
+		/// The network configuration has already been added.
 		NetworkConfigAlreadyAdded,
+		/// The provided token is invalid.
+		InvalidToken,
+		/// The cord genesis head is invalid or corrupted.
+		InvalidCordGenesisHead,
+		/// The network genesis head is invalid or corrupted.
+		InvalidNetworkGenesisHead,
+		/// The provided account ID is invalid or not recognized.
+		InvalidAccountId,
+		/// The checksum of the token is invalid or does not match.
+		InvalidChecksum,
+		/// The prefix in the provided token is invalid.
+		InvalidPrefix,
+		/// The network ID is invalid or not recognized.
+		InvalidNetworkId,
+		/// The origin of the operation is not authorized or invalid.
+		Badorigin,
 	}
 
 	#[pallet::storage]
-	pub type NetworkConfigInfo<T: Config> =
-		StorageMap<_, Blake2_128Concat, IdentifierOf, NetworkInfo, OptionQuery>;
-
-	#[pallet::storage]
-	pub type NetworkIdToIdentifier<T: Config> =
-		StorageMap<_, Blake2_128Concat, NetworkId, IdentifierOf, OptionQuery>;
+	pub type NetworkConfigInfo<T: Config> = StorageMap<
+		_,
+		Blake2_128Concat,
+		NetworkId,
+		NetworkInfo<NetworkName, NetworkEndpoints, NetworkWebsite, NetworkToken, CordAccountOf<T>>,
+		OptionQuery,
+	>;
 
 	#[pallet::storage]
 	pub(super) type NetworkIdentifier<T: Config> = StorageValue<_, NetworkId, ValueQuery>;
@@ -112,20 +130,20 @@ pub mod pallet {
 	pub enum Event<T: Config> {
 		/// Network Info added.
 		NetworkInfo {
-			identifier: IdentifierOf,
 			network: NetworkId,
+			manager: CordAccountOf<T>,
 		},
 		NetworkNameUpdate {
-			identifier: IdentifierOf,
+			network: NetworkId,
 		},
 		NetworkRpcUpdate {
-			identifier: IdentifierOf,
+			network: NetworkId,
 		},
 		NetworkWebUpdate {
-			identifier: IdentifierOf,
+			network: NetworkId,
 		},
 		NetworkRpcRemove {
-			identifier: IdentifierOf,
+			network: NetworkId,
 		},
 	}
 
@@ -163,45 +181,28 @@ pub mod pallet {
 		pub fn network_info(
 			origin: OriginFor<T>,
 			name: Vec<u8>,
-			mode: NetworkType,
 			endpoints: Vec<Vec<u8>>,
 			website: Option<Vec<u8>>,
+			token: Vec<u8>,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			T::NetworkConfigOrigin::ensure_origin(origin)?;
+
+			let network_id = NetworkIdentifier::<T>::get();
 			ensure!(
-				NetworkConfigInfo::<T>::iter_keys().next().is_none(),
+				!NetworkConfigInfo::<T>::contains_key(&network_id),
 				Error::<T>::NetworkConfigAlreadyAdded
 			);
 
-			let pallet_name = <Self as PalletInfoAccess>::name();
+			let (t_network_id, _t_cord_genesis_hash, t_network_genesis_hash, t_account_id) =
+				Self::resolve(&token)?;
 			let genesis_hash = <frame_system::Pallet<T>>::block_hash(BlockNumberFor::<T>::zero());
-
-			let network_id = NetworkIdentifier::<T>::get();
+			ensure!(t_network_genesis_hash == genesis_hash, Error::<T>::InvalidNetworkGenesisHead);
+			ensure!(t_network_id == network_id, Error::<T>::InvalidNetworkId);
 
 			let name_bounded = BoundedVec::<u8, ConstU32<64>>::try_from(name)
 				.map_err(|_| Error::<T>::InvalidInput)?;
-
-			// Id Digest = concat (H(<scale_encoded_genesis_hash>, <scale_encoded_network_name>, <scale_encoded_network_type>,))
-			let digest = <T as frame_system::Config>::Hashing::hash(
-				&[
-					&genesis_hash.encode()[..],
-					&name_bounded.encode()[..],
-					&mode.encode()[..],
-					&network_id.encode()[..],
-				]
-				.concat()[..],
-			);
-
-			let identifier = T::CordIdentifier::build(&(digest).encode()[..], pallet_name)
-				.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-
-			// let identifier = <Ss58Identifier as cord_uri::IdentifierCreator>::cr_encode::<T>(
-			// 	&(digest).encode()[..],
-			// 	pallet_name,
-			// )
-			// .map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-			// // let identifier = Ss58Identifier::cr_encode::<T>(&(digest).encode()[..], pallet_name)
-			// 	.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			let token_bounded = BoundedVec::<u8, ConstU32<142>>::try_from(token)
+				.map_err(|_| Error::<T>::InvalidInput)?;
 
 			let rpc_endpoints_vec: Vec<BoundedVec<u8, ConstU32<256>>> = endpoints
 				.into_iter()
@@ -233,58 +234,80 @@ pub mod pallet {
 			};
 
 			let network_info = NetworkInfo {
-				id: network_id,
 				name: name_bounded,
-				mode,
 				endpoints: rpc_endpoints,
 				website,
+				token: token_bounded,
+				owner: t_account_id.clone(),
 			};
 
-			NetworkConfigInfo::<T>::insert(identifier.clone(), network_info.clone());
-			NetworkIdToIdentifier::<T>::insert(network_id.clone(), identifier.clone());
+			NetworkConfigInfo::<T>::insert(network_id.clone(), network_info.clone());
 
-			Self::deposit_event(Event::NetworkInfo { identifier, network: network_id });
+			Self::deposit_event(Event::NetworkInfo { network: network_id, manager: t_account_id });
 
 			Ok(())
 		}
 
 		#[pallet::call_index(1)]
 		#[pallet::weight({200_000})]
-		pub fn update_name(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResult {
-			ensure_root(origin)?;
+		pub fn update_token(origin: OriginFor<T>, token: Vec<u8>) -> DispatchResult {
+			T::NetworkConfigOrigin::ensure_origin(origin)?;
 
-			let identifier = NetworkConfigInfo::<T>::iter_keys()
-				.next()
-				.ok_or(Error::<T>::NetworkInfoNotFound)?;
-
+			let network_id = NetworkIdentifier::<T>::get();
 			let mut network_info =
-				NetworkConfigInfo::<T>::get(&identifier).ok_or(Error::<T>::NetworkInfoNotFound)?;
+				NetworkConfigInfo::<T>::get(network_id).ok_or(Error::<T>::NetworkInfoNotFound)?;
 
-			let bounded_name = BoundedVec::<u8, ConstU32<64>>::try_from(name)
+			let (t_network_id, _t_cord_genesis_hash, t_network_genesis_hash, t_account_id) =
+				Self::resolve(&token)?;
+			// let pallet_name = <Self as PalletInfoAccess>::name();
+			let genesis_hash = <frame_system::Pallet<T>>::block_hash(BlockNumberFor::<T>::zero());
+			ensure!(t_account_id == network_info.owner, Error::<T>::InvalidNetworkGenesisHead);
+			ensure!(t_network_genesis_hash == genesis_hash, Error::<T>::InvalidNetworkGenesisHead);
+			ensure!(t_network_id == network_id, Error::<T>::InvalidNetworkId);
+
+			let bounded_token = BoundedVec::<u8, ConstU32<142>>::try_from(token)
 				.map_err(|_| Error::<T>::InvalidInput)?;
-			network_info.name = bounded_name.clone();
+			network_info.token = bounded_token.clone();
 
-			NetworkConfigInfo::<T>::insert(&identifier, network_info);
+			NetworkConfigInfo::<T>::insert(&network_id, network_info);
 
-			Self::deposit_event(Event::NetworkNameUpdate { identifier: identifier.clone() });
+			Self::deposit_event(Event::NetworkNameUpdate { network: network_id.clone() });
 
 			Ok(())
 		}
 
 		#[pallet::call_index(2)]
 		#[pallet::weight({200_000})]
+		pub fn update_name(origin: OriginFor<T>, name: Vec<u8>) -> DispatchResult {
+			T::NetworkConfigOrigin::ensure_origin(origin)?;
+
+			let network_id = NetworkIdentifier::<T>::get();
+			let mut network_info =
+				NetworkConfigInfo::<T>::get(network_id).ok_or(Error::<T>::NetworkInfoNotFound)?;
+
+			let bounded_name = BoundedVec::<u8, ConstU32<64>>::try_from(name)
+				.map_err(|_| Error::<T>::InvalidInput)?;
+			network_info.name = bounded_name.clone();
+
+			NetworkConfigInfo::<T>::insert(&network_id, network_info);
+
+			Self::deposit_event(Event::NetworkNameUpdate { network: network_id.clone() });
+
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight({200_000})]
 		pub fn update_rpc_endpoints(
 			origin: OriginFor<T>,
 			endpoints: Vec<Vec<u8>>,
 		) -> DispatchResult {
-			ensure_root(origin)?;
+			T::NetworkConfigOrigin::ensure_origin(origin)?;
 
-			let identifier = NetworkConfigInfo::<T>::iter_keys()
-				.next()
-				.ok_or(Error::<T>::NetworkInfoNotFound)?;
+			let network_id = NetworkIdentifier::<T>::get();
 
 			let mut network_info =
-				NetworkConfigInfo::<T>::get(&identifier).ok_or(Error::<T>::NetworkInfoNotFound)?;
+				NetworkConfigInfo::<T>::get(&network_id).ok_or(Error::<T>::NetworkInfoNotFound)?;
 
 			let rpc_endpoints_vec: Vec<BoundedVec<u8, ConstU32<256>>> = endpoints
 				.into_iter()
@@ -302,24 +325,22 @@ pub mod pallet {
 			network_info.endpoints = BoundedVec::<_, ConstU32<50>>::try_from(rpc_endpoints_vec)
 				.map_err(|_| Error::<T>::InvalidInput)?;
 
-			NetworkConfigInfo::<T>::insert(&identifier, network_info);
+			NetworkConfigInfo::<T>::insert(&network_id, network_info);
 
-			Self::deposit_event(Event::NetworkRpcUpdate { identifier: identifier.clone() });
+			Self::deposit_event(Event::NetworkRpcUpdate { network: network_id.clone() });
 
 			Ok(())
 		}
 
-		#[pallet::call_index(3)]
+		#[pallet::call_index(4)]
 		#[pallet::weight({200_000})]
 		pub fn update_website(origin: OriginFor<T>, website: Option<Vec<u8>>) -> DispatchResult {
-			ensure_root(origin)?;
+			T::NetworkConfigOrigin::ensure_origin(origin)?;
 
-			let identifier = NetworkConfigInfo::<T>::iter_keys()
-				.next()
-				.ok_or(Error::<T>::NetworkInfoNotFound)?;
+			let network_id = NetworkIdentifier::<T>::get();
 
 			let mut network_info =
-				NetworkConfigInfo::<T>::get(&identifier).ok_or(Error::<T>::NetworkInfoNotFound)?;
+				NetworkConfigInfo::<T>::get(&network_id).ok_or(Error::<T>::NetworkInfoNotFound)?;
 
 			network_info.website = match website {
 				Some(uri) => {
@@ -334,24 +355,22 @@ pub mod pallet {
 				None => None,
 			};
 
-			NetworkConfigInfo::<T>::insert(&identifier, network_info);
+			NetworkConfigInfo::<T>::insert(&network_id, network_info);
 
-			Self::deposit_event(Event::NetworkWebUpdate { identifier: identifier.clone() });
+			Self::deposit_event(Event::NetworkWebUpdate { network: network_id.clone() });
 
 			Ok(())
 		}
 
-		#[pallet::call_index(4)]
+		#[pallet::call_index(5)]
 		#[pallet::weight({200_000})]
 		pub fn remove_rpc_endpoint(origin: OriginFor<T>, endpoint: Vec<u8>) -> DispatchResult {
-			ensure_root(origin)?;
+			T::NetworkConfigOrigin::ensure_origin(origin)?;
 
-			let identifier = NetworkConfigInfo::<T>::iter_keys()
-				.next()
-				.ok_or(Error::<T>::NetworkInfoNotFound)?;
+			let network_id = NetworkIdentifier::<T>::get();
 
 			let mut network_info =
-				NetworkConfigInfo::<T>::get(&identifier).ok_or(Error::<T>::NetworkInfoNotFound)?;
+				NetworkConfigInfo::<T>::get(&network_id).ok_or(Error::<T>::NetworkInfoNotFound)?;
 
 			ensure!(network_info.endpoints.len() > 1, Error::<T>::InvalidInput);
 
@@ -360,9 +379,9 @@ pub mod pallet {
 
 			network_info.endpoints.retain(|uri| uri != &uri_bounded);
 
-			NetworkConfigInfo::<T>::insert(&identifier, network_info);
+			NetworkConfigInfo::<T>::insert(&network_id, network_info);
 
-			Self::deposit_event(Event::NetworkRpcRemove { identifier: identifier.clone() });
+			Self::deposit_event(Event::NetworkRpcRemove { network: network_id.clone() });
 
 			Ok(())
 		}
@@ -403,6 +422,75 @@ pub mod pallet {
 			} else {
 				false
 			}
+		}
+
+		pub fn resolve(
+			token: &Vec<u8>,
+		) -> Result<(NetworkId, HashOf<T>, HashOf<T>, CordAccountOf<T>), Error<T>> {
+			// Decode the Base58-encoded token
+			let decoded = bs58::decode(&token).into_vec().map_err(|_| Error::<T>::InvalidToken)?;
+
+			ensure!(decoded.len() >= 2 && decoded.len() <= 142, Error::<T>::InvalidToken);
+
+			let (ident, mut offset) = Self::compact_decode(&decoded)?;
+			ensure!(ident == 21 || ident == 24, Error::<T>::InvalidToken);
+
+			let cord_genesis_hash_end = offset + 32;
+			ensure!(cord_genesis_hash_end <= decoded.len(), Error::<T>::InvalidCordGenesisHead);
+			let cord_genesis_hash_bytes = &decoded[offset..cord_genesis_hash_end];
+			let cord_genesis_hash = HashOf::<T>::decode(&mut &*cord_genesis_hash_bytes)
+				.map_err(|_| Error::<T>::InvalidCordGenesisHead)?;
+			offset = cord_genesis_hash_end;
+
+			let (nid, nid_offset) = Self::compact_decode(&decoded[offset..])?;
+			offset += nid_offset;
+
+			let network_genesis_hash_end = offset + 32;
+			ensure!(
+				network_genesis_hash_end <= decoded.len(),
+				Error::<T>::InvalidNetworkGenesisHead
+			);
+			let network_genesis_hash_bytes = &decoded[offset..network_genesis_hash_end];
+			let network_genesis_hash = HashOf::<T>::decode(&mut &*network_genesis_hash_bytes)
+				.map_err(|_| Error::<T>::InvalidNetworkGenesisHead)?;
+			offset = network_genesis_hash_end;
+
+			// Extract `account_id` (32 bytes)
+			let account_id_end = offset + 32;
+			ensure!(account_id_end <= decoded.len(), Error::<T>::InvalidAccountId);
+			let account_id_bytes = &decoded[offset..account_id_end];
+			let account_id = CordAccountOf::<T>::decode(&mut &*account_id_bytes)
+				.map_err(|_| Error::<T>::InvalidAccountId)?;
+
+			// Verify checksum
+			let checksum = &decoded[decoded.len() - 2..];
+			let expected_checksum = &Self::checksum(&decoded[..decoded.len() - 2])[..2];
+			ensure!(checksum == expected_checksum, Error::<T>::InvalidChecksum);
+
+			Ok((NetworkId::from(nid as u32), cord_genesis_hash, network_genesis_hash, account_id))
+		}
+
+		fn compact_decode(data: &[u8]) -> Result<(u16, usize), Error<T>> {
+			match data[0] {
+				0..=63 => Ok((data[0] as u16, 1)),
+				64..=127 => {
+					ensure!(data.len() >= 2, Error::<T>::InvalidPrefix);
+					let lower = (data[0] << 2) | (data[1] >> 6);
+					let upper = data[1] & 0b0011_1111;
+					Ok(((lower as u16) | ((upper as u16) << 8), 2))
+				},
+				_ => Err(Error::<T>::InvalidPrefix),
+			}
+		}
+
+		fn checksum(data: &[u8]) -> Vec<u8> {
+			use blake2::{Blake2b512, Digest};
+			const PREFIX: &[u8] = b"NIDV01";
+
+			let mut hasher = Blake2b512::new();
+			hasher.update(PREFIX);
+			hasher.update(data);
+			hasher.finalize().to_vec()
 		}
 	}
 }

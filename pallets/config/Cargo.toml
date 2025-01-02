@@ -21,6 +21,9 @@ scale-info = { features = ["derive"], workspace = true }
 cord-primitives = { workspace = true }
 fluent-uri = { workspace = true }
 serde = { optional = true, features = ["alloc", "derive"], workspace = true }
+bs58 = { workspace = true }
+blake2 = { workspace = true }
+log = { workspace = true }
 
 # Substrate dependencies
 frame-system = { workspace = true }
@@ -39,12 +42,15 @@ runtime-benchmarks = [
 	"frame-support/runtime-benchmarks",
 ]
 std = [
+	"bs58/std",
+	"blake2/std",
 	"codec/std",
 	"scale-info/std",
 	"cord-primitives/std",
 	"cord-uri/std",
 	"frame-system/std",
 	"frame-benchmarking?/std",
+	"log/std",
 	"sp-runtime/std",
 	"sp-core/std",
 	"serde/std",
