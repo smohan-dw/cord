@@ -177,6 +177,8 @@ pub mod pallet {
 		TokenGenerationFailed,
 		/// The provided token does not match the expected value.
 		TokenMismatch,
+		/// The provided network id does not match the expected value.
+		InvalidNetworkId,
 	}
 
 	/// Netoworks - maps a network to it's associated properties.
@@ -258,6 +260,11 @@ pub mod pallet {
 			};
 
 			let network_data = Networks::<T>::get(reserve_id).ok_or(Error::<T>::NotReserved)?;
+
+			ensure!(
+				network_genesis_head != network_data.genesis_head,
+				Error::<T>::AlreadyRegistered
+			);
 
 			let genesis_hash = <frame_system::Pallet<T>>::block_hash(BlockNumberFor::<T>::zero());
 			ensure!(genesis_hash == cord_genesis_hash, Error::<T>::CordGenesisMismatch);
@@ -396,6 +403,10 @@ pub mod pallet {
 
 			Ok(())
 		}
+
+		// [TODO]
+		// transafer network
+		// update genesis-head
 	}
 }
 

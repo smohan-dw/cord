@@ -54,6 +54,8 @@ pub enum IdentifierError {
 	InvalidPalletIndex,
 	/// The pallet name format is invalid.
 	InvalidPalletNameFormat,
+	/// The provided network id does not match the expected value.
+	InvalidNetworkId,
 }
 
 #[frame_support::pallet]
@@ -123,7 +125,7 @@ impl<T: Config> Pallet<T> {
 #[derive(
 	Clone, Eq, PartialEq, Ord, PartialOrd, RuntimeDebug, Encode, Decode, MaxEncodedLen, TypeInfo,
 )]
-pub struct Ss58Identifier(pub(crate) BoundedVec<u8, ConstU32<53>>);
+pub struct Ss58Identifier(pub(crate) BoundedVec<u8, ConstU32<60>>);
 
 pub trait Identifier {
 	fn build(digest: &[u8], pallet: &str) -> Result<Ss58Identifier, IdentifierError>;
@@ -149,18 +151,18 @@ impl Ss58Identifier {
 	{
 		let ident_type = Self::fetch_ident(nid.inner() as u16, *pid);
 		let ident = Self::compact_encode(ident_type & 0b0011_1111_1111_1111)?;
-		let id: u16 = nid.inner() as u16 & 0b0011_1111_1111_1111;
-		let n = Self::compact_encode(id)?;
+		let nid_inner = nid.inner();
 		let p = Self::compact_encode(*pid & 0b0011_1111_1111_1111)?;
 
 		let mut buffer = Vec::new();
 		buffer.extend(ident);
 		buffer.extend(data.as_ref());
-		buffer.extend(n);
+		buffer.extend(&nid_inner.to_le_bytes());
 		buffer.extend(p);
 
 		let checksum = &Self::ss58hash(&buffer)[..2];
 		buffer.extend(checksum);
+
 		let encoded = bs58::encode(&buffer).into_string();
 
 		Ok(Self(
@@ -174,10 +176,9 @@ impl Ss58Identifier {
 		let decoded =
 			bs58::decode(&self.0).into_vec().map_err(|_| IdentifierError::InvalidFormat)?;
 		ensure!(
-			decoded.len() >= 2 && decoded.len() <= 53,
+			decoded.len() >= 2 && decoded.len() <= 60,
 			IdentifierError::InvalidIdentifierLength
 		);
-		log::info!("Decoded token: {:?}", decoded);
 
 		let (_ident, mut offset) = Self::compact_decode(&decoded)?;
 
@@ -185,8 +186,13 @@ impl Ss58Identifier {
 		let payload = &decoded[offset..payload_end].to_vec();
 		offset = payload_end;
 
-		let (network_id, nid_offset) = Self::compact_decode(&decoded[offset..])?;
-		offset += nid_offset;
+		let nid_offset = offset + 4;
+		let network_id = u32::from_le_bytes(
+			decoded[offset..nid_offset]
+				.try_into()
+				.map_err(|_| IdentifierError::InvalidNetworkId)?,
+		);
+		offset = nid_offset;
 
 		let (pallet_index, _pid_offset) = Self::compact_decode(&decoded[offset..])?;
 
@@ -228,19 +234,25 @@ impl Ss58Identifier {
 
 	fn fetch_ident(nid: u16, pid: u16) -> u16 {
 		let seed = nid as u32 ^ pid as u32;
-		let mut value = seed;
-		value = value.wrapping_mul(1664525).wrapping_add(1013904223);
+		let value = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+
 		if nid == 1000 {
-			33 + ((value % 7) as u16) // Range 33..=39
+			// List of values for nid == 1000
+			let options = [10191, 10447, 10959, 10703, 10456, 10200];
+			let index = (value % options.len() as u32) as usize;
+			options[index]
 		} else {
-			9 + ((value % 7) as u16) // Range 9..=15
+			// List of values for nid != 1000
+			let options = [2860, 3893, 3390, 3134, 3646, 3390, 4926, 4670, 3902, 4926];
+			let index = (value % options.len() as u32) as usize;
+			options[index]
 		}
 	}
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DecodedIdentifier {
-	pub network: u16,
+	pub network: u32,
 	pub pallet: u16,
 	pub digest: String,
 }

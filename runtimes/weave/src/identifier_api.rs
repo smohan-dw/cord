@@ -30,7 +30,7 @@ use scale_info::TypeInfo;
 
 #[derive(Encode, Decode, TypeInfo, PartialEq, Eq)]
 pub struct DecodedIdentifierApi {
-	pub network: u16,
+	pub network: u32,
 	pub pallet: u16,
 	pub digest: String,
 }
