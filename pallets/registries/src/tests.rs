@@ -959,7 +959,7 @@ fn restoring_an_non_archived_a_registry_should_fail() {
 }
 
 #[test]
-fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
+fn registry_delegation_should_fail_if_registry_delegates_limit_exceeded() {
 	let creator = ACCOUNT_00;
 	let registry = [2u8; 256].to_vec();
 
@@ -1202,6 +1202,216 @@ fn update_registry_should_succeed() {
 				authorization: authorization_id,
 			}
 			.into(),
+		);
+	});
+}
+
+#[test]
+fn add_delegate_should_fail_if_registry_delegates_limit_exceeded() {
+	let creator = ACCOUNT_00;
+	let delegate_1 = ACCOUNT_01;
+	let delegate_2 = ACCOUNT_02;
+	let delegate_3: AccountId = AccountId::new([4u8; 32]);
+	let delegate_4: AccountId = AccountId::new([5u8; 32]);
+	let delegate_5: AccountId = AccountId::new([6u8; 32]);
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	new_test_ext().execute_with(|| {
+		// Create the Registries
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			Some(schema_id),
+			Some(blob.clone()),
+		));
+
+		// Add maximum delegates allowed in a registry
+		let delegates = vec![delegate_1, delegate_2, delegate_3, delegate_4];
+		for delegate in delegates {
+			assert_ok!(Registries::add_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				delegate.clone(),
+				authorization_id.clone(),
+			));
+		}
+
+		// Attempt to add one more delegate, which should exceed the limit and result in the
+		// expected error
+		assert_err!(
+			Registries::add_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				delegate_5.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::RegistryDelegatesLimitExceeded
+		);
+	});
+}
+
+#[test]
+fn add_admin_delegate_should_fail_if_registry_delegates_limit_exceeded() {
+	let creator = ACCOUNT_00;
+	let delegate_1 = ACCOUNT_01;
+	let delegate_2 = ACCOUNT_02;
+	let delegate_3: AccountId = AccountId::new([4u8; 32]);
+	let delegate_4: AccountId = AccountId::new([5u8; 32]);
+	let delegate_5: AccountId = AccountId::new([6u8; 32]);
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	new_test_ext().execute_with(|| {
+		// Create the Registries
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			Some(schema_id),
+			Some(blob.clone()),
+		));
+
+		// Add maximum delegates allowed in a registry
+		let delegates = vec![delegate_1, delegate_2, delegate_3, delegate_4];
+		for delegate in delegates {
+			assert_ok!(Registries::add_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				delegate.clone(),
+				authorization_id.clone(),
+			));
+		}
+
+		// Attempt to add an admin delegate, which should exceed the limit and result in the
+		// expected error
+		assert_err!(
+			Registries::add_admin_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				delegate_5.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::RegistryDelegatesLimitExceeded
+		);
+	});
+}
+
+#[test]
+fn add_delegator_should_fail_if_registry_delegates_limit_exceeded() {
+	let creator = ACCOUNT_00;
+	let delegate_1 = ACCOUNT_01;
+	let delegate_2 = ACCOUNT_02;
+	let delegate_3: AccountId = AccountId::new([4u8; 32]);
+	let delegate_4: AccountId = AccountId::new([5u8; 32]);
+	let delegate_5: AccountId = AccountId::new([6u8; 32]);
+	let registry = [2u8; 256].to_vec();
+
+	let raw_blob = [2u8; 256].to_vec();
+	let blob: RegistryBlobOf<Test> = BoundedVec::try_from(raw_blob)
+		.expect("Test blob should fit into the expected input length of for the test runtime.");
+
+	let registry_digest = <Test as frame_system::Config>::Hashing::hash(&registry.encode()[..]);
+
+	let id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_digest.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let registry_id: RegistryIdOf = generate_registry_id::<Test>(&id_digest);
+
+	let auth_id_digest = <Test as frame_system::Config>::Hashing::hash(
+		&[&registry_id.encode()[..], &creator.encode()[..], &creator.encode()[..]].concat()[..],
+	);
+
+	let authorization_id: AuthorizationIdOf = generate_authorization_id::<Test>(&auth_id_digest);
+
+	let raw_schema = [2u8; 256].to_vec();
+	let schema: InputSchemaOf<Test> = BoundedVec::try_from(raw_schema)
+		.expect("Test Schema should fit into the expected input length of for the test runtime.");
+	let _digest: SchemaHashOf<Test> = <Test as frame_system::Config>::Hashing::hash(&schema[..]);
+	let schema_id_digest = <Test as frame_system::Config>::Hashing::hash(&schema.encode()[..]);
+	let schema_id: SchemaIdOf = generate_schema_id::<Test>(&schema_id_digest);
+
+	new_test_ext().execute_with(|| {
+		// Create the Registries
+		assert_ok!(Registries::create(
+			frame_system::RawOrigin::Signed(creator.clone()).into(),
+			registry_id.clone(),
+			registry_digest,
+			Some(schema_id),
+			Some(blob.clone()),
+		));
+
+		// Add maximum delegates allowed in a registry
+		let delegates = vec![delegate_1, delegate_2, delegate_3, delegate_4];
+		for delegate in delegates {
+			assert_ok!(Registries::add_delegate(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				delegate.clone(),
+				authorization_id.clone(),
+			));
+		}
+
+		// Attempt to add a delegator, which should exceed the limit and result in the
+		// expected error
+		assert_err!(
+			Registries::add_delegator(
+				frame_system::RawOrigin::Signed(creator.clone()).into(),
+				registry_id.clone(),
+				delegate_5.clone(),
+				authorization_id.clone(),
+			),
+			Error::<Test>::RegistryDelegatesLimitExceeded
 		);
 	});
 }
