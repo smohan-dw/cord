@@ -1344,7 +1344,7 @@ impl networks_registrar::Config for Runtime {
 
 impl pallet_config::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type CordIdentifier = Identifier;
+	type NetworkConfigOrigin = EnsureRootOrCouncilApproval;
 	type DefaultNetworkId = ConstU32<1000>;
 }
 
@@ -1498,7 +1498,7 @@ mod runtime {
 	pub type Statement = pallet_statement::Pallet<Runtime>;
 
 	#[runtime::pallet_index(46)]
-	pub type Registrar = networks_registrar::Pallet<Runtime>;
+	pub type NetworkRegistrar = networks_registrar::Pallet<Runtime>;
 
 	#[runtime::pallet_index(50)]
 	pub type StateTrieMigration = pallet_state_trie_migration::Pallet<Runtime>;
@@ -1528,7 +1528,7 @@ mod runtime {
 	pub type Identifier = cord_uri::Pallet<Runtime>;
 
 	#[runtime::pallet_index(80)]
-	pub type NetworkParameters = pallet_config::Pallet<Runtime>;
+	pub type NetworkInfo = pallet_config::Pallet<Runtime>;
 
 	#[runtime::pallet_index(100)]
 	pub type MultiBlockMigrations = pallet_migrations::Pallet<Runtime>;

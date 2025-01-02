@@ -101,7 +101,7 @@ fn cord_braid_testnet_genesis(
 		"balances": {
 			"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 		},
-		"networkParameters": {"permissioned": true, "networkId": 1001},
+		"networkInfo": {"permissioned": true, "networkId": 2001},
 		"nodeAuthorization":  {
 			"nodes": initial_well_known_nodes.iter().map(|x| (x.0.clone(), x.1.clone())).collect::<Vec<_>>(),
 		},

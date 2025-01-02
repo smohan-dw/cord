@@ -921,7 +921,7 @@ impl pallet_chain_space::Config for Runtime {
 	type OriginSuccess = pallet_did::DidRawOrigin<AccountId, DidIdentifier>;
 	type RuntimeEvent = RuntimeEvent;
 	type ChainSpaceOrigin = MoreThanHalfCouncil;
-	type NetworkPermission = NetworkParameters;
+	type NetworkPermission = NetworkInfo;
 	type MaxSpaceDelegates = MaxSpaceDelegates;
 	type WeightInfo = weights::pallet_chain_space::WeightInfo<Runtime>;
 }
@@ -977,7 +977,7 @@ impl pallet_network_score::Config for Runtime {
 
 impl pallet_config::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type CordIdentifier = IdentifierV2;
+	type NetworkConfigOrigin = MoreThanHalfCouncil;
 	type DefaultNetworkId = ConstU32<1000>;
 }
 
@@ -1212,7 +1212,7 @@ mod runtime {
 	pub type NetworkScore = pallet_network_score::Pallet<Runtime>;
 
 	#[runtime::pallet_index(80)]
-	pub type NetworkParameters = pallet_config::Pallet<Runtime>;
+	pub type NetworkInfo = pallet_config::Pallet<Runtime>;
 
 	#[runtime::pallet_index(81)]
 	pub type Registries = pallet_registries::Pallet<Runtime>;

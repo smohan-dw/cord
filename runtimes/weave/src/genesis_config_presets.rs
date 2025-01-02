@@ -102,7 +102,7 @@ fn cord_weave_testnet_genesis(
 	"balances": {
 		"balances": endowed_accounts.iter().map(|k| (k.clone(), ENDOWMENT)).collect::<Vec<_>>(),
 	},
-	"networkParameters": {"permissioned": false, "networkId": 1003},
+	"networkInfo": {"permissioned": false, "networkId": 2001},
 	"session": {
 		"keys": initial_authorities
 			.iter()

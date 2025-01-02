@@ -137,35 +137,45 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
-		/// The ID is not registered.
+		/// The ID is not registered in the network.
 		NotRegistered,
-		/// The ID is already registered.
+		/// The ID is already registered and cannot be registered again.
 		AlreadyRegistered,
-		/// The caller is not the owner of this Id.
+		/// The caller is not the owner of the specified ID.
 		NotOwner,
-		/// The ID given for registration has not been reserved.
+		/// The ID provided for registration has not been reserved beforehand.
 		NotReserved,
-		/// Max. supported entires for a block exceeded.
+		/// The maximum number of entries supported for a block has been exceeded.
 		MaxEntriesExceededForTheBlock,
-		/// Network manager balance is low.
+		/// The network manager does not have sufficient balance to pay fees.
 		UnableToPayFees,
-		/// Network registration renewed.
+		/// The network registration has been successfully renewed.
 		RegistrationRenewed,
-		/// Network Registration is active.
+		/// The network registration is currently active.
 		ActiveRegistration,
-		/// Network registration is expired
+		/// The network registration has expired and is no longer active.
 		InActiveRegistration,
-		/// Invalid Genesis hash/head.
+		/// The provided genesis hash or head is invalid.
 		InvalidGenesisHash,
+		/// The provided token is invalid.
 		InvalidToken,
+		/// The prefix in the provided token is invalid.
 		InvalidPrefix,
+		/// The cord genesis head is invalid or corrupted.
 		InvalidCordGenesisHead,
+		/// The network genesis head is invalid or corrupted.
 		InvalidNetworkGenesisHead,
+		/// The provided account ID is invalid or not recognized.
 		InvalidAccountId,
+		/// The checksum of the token is invalid or does not match.
 		InvalidChecksum,
+		/// The cord genesis hash does not match the expected value.
 		CordGenesisMismatch,
+		/// The origin of the operation is not authorized or invalid.
 		BadOrigin,
+		/// The token generation process failed.
 		TokenGenerationFailed,
+		/// The provided token does not match the expected value.
 		TokenMismatch,
 	}
 
@@ -414,7 +424,7 @@ impl<T: Config> Pallet<T> {
 		);
 		let token =
 			NetworkToken::<T>::generate(id, &genesis_hash, &reserve_genesis_hash, &who, true)
-				.map_err(|_| Error::<T>::InvalidToken)?;
+				.map_err(|_| Error::<T>::InvalidPrefix)?;
 
 		let info = NetworkInfo {
 			manager: who.clone(),
@@ -433,31 +443,6 @@ impl<T: Config> Pallet<T> {
 		Self::deposit_event(Event::<T>::Reserved { network_id: id, who, token });
 		Ok(())
 	}
-
-	// /// Attempt to register a new Network genesis hash
-	// fn do_register(
-	// 	who: CordAccountOf<T>,
-	// 	id: NetworkId,
-	// 	genesis_head: HashOf<T>,
-	// ) -> DispatchResult {
-	// 	let network_data = Networks::<T>::get(id).ok_or(Error::<T>::NotReserved)?;
-	// 	ensure!(network_data.manager == who, Error::<T>::NotOwner);
-	// 	ensure!(network_data.genesis_head.is_none(), Error::<T>::AlreadyRegistered);
-	// 	ensure!(genesis_head != T::Hash::default(), Error::<T>::InvalidGenesisHash);
-
-	// 	let info: NetworkInfo<CordAccountOf<T>, Option<HashOf<T>>, NetworkToken<T>, bool> =
-	// 		NetworkInfo {
-	// 			// manager: who.clone(),
-	// 			genesis_head: Some(genesis_head.into()),
-	// 			active: true,
-	// 			..network_data
-	// 		};
-
-	// 	Networks::<T>::insert(id, info);
-
-	// 	Self::deposit_event(Event::<T>::Registered { network_id: id, manager: who });
-	// 	Ok(())
-	// }
 
 	/// Attempt to renew an expired network registration.
 	fn do_renew(who: CordAccountOf<T>, id: NetworkId) -> DispatchResult {

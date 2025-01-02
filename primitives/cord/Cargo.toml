@@ -23,7 +23,6 @@ serde = { features = ["alloc", "derive"], workspace = true }
 
 [features]
 default = ["std"]
-# std = ["sp-core/std", "sp-runtime/std", "sp-std/std"]
 std = [
 	"codec/std",
 	"scale-info/std",
