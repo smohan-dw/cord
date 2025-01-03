@@ -180,25 +180,3 @@ pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<Vec<u8>> {
 			.into_bytes(),
 	)
 }
-// pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<Vec<u8>> {
-// 	let patch = match id.as_ref() {
-// 		Ok("development") => cord_weave_development_config_genesis(),
-// 		Ok("local_testnet") => cord_weave_local_testnet_genesis(),
-// 		_ => return None,
-// 	};
-// 	Some(
-// 		serde_json::to_string(&patch)
-// 			.expect("serialization to json is expected to work. qed.")
-// 			.into_bytes(),
-// 	)
-// }
-
-#[cfg(test)]
-mod tests {
-	use super::*;
-
-	#[test]
-	fn default_parachains_host_configuration_is_consistent() {
-		default_parachains_host_configuration().panic_if_not_consistent();
-	}
-}
