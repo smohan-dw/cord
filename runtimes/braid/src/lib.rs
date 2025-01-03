@@ -60,7 +60,7 @@ use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
 use sp_inherents::{CheckInherentsResult, InherentData};
 use sp_runtime::{
-	create_runtime_str, generic,
+	generic,
 	generic::Era,
 	impl_opaque_keys,
 	traits::{
@@ -95,7 +95,6 @@ pub use pallet_network_membership;
 pub mod benchmark;
 pub use benchmark::DummySignature;
 pub use pallet_assets_runtime_api as assets_api;
-use pallet_network_membership::RuntimeDispatchWeightInfo;
 
 // Genesis preset configurations.
 pub mod genesis_config_presets;
@@ -125,14 +124,14 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: create_runtime_str!("braid"),
-	impl_name: create_runtime_str!("dhiway-cord"),
+	spec_name: alloc::borrow::Cow::Borrowed("braid"),
+	impl_name: alloc::borrow::Cow::Borrowed("dhiway-cord"),
 	authoring_version: 0,
 	spec_version: 9500,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
-	state_version: 1,
+	system_version: 1,
 };
 
 impl_runtime_weights!(cord_braid_runtime_constants);
@@ -160,7 +159,7 @@ impl Contains<RuntimeCall> for BaseFilter {
 
 parameter_types! {
   pub const Version: RuntimeVersion = VERSION;
-  pub const SS58Prefix: u16 = 3893;
+  pub const SS58Prefix: u16 = 29;
 }
 
 #[derive_impl(frame_system::config_preludes::SolochainDefaultConfig)]
@@ -208,23 +207,25 @@ impl PrivilegeCmp<OriginCaller> for OriginPrivilegeCmp {
 }
 
 impl pallet_scheduler::Config for Runtime {
-	type RuntimeOrigin = RuntimeOrigin;
 	type RuntimeEvent = RuntimeEvent;
+	type RuntimeOrigin = RuntimeOrigin;
 	type PalletsOrigin = OriginCaller;
 	type RuntimeCall = RuntimeCall;
 	type MaximumWeight = MaximumSchedulerWeight;
 	type ScheduleOrigin = EnsureRoot<AccountId>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type MaxScheduledPerBlock = ConstU32<512>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxScheduledPerBlock = MaxScheduledPerBlock;
-	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 	type OriginPrivilegeCmp = OriginPrivilegeCmp;
 	type Preimages = ();
+	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 }
 
 parameter_types! {
-	pub EpochDuration: u64 = prod_or_fast!(
+	pub const EpochDuration: u64 = prod_or_fast!(
 		EPOCH_DURATION_IN_SLOTS as u64,
-		2 * MINUTES as u64,
-		"CORD_EPOCH_DURATION"
+		2 * MINUTES as u64
 	);
 	pub const SessionsPerEra: SessionIndex = 6;
 	pub const BondingDuration: sp_staking::EraIndex = 28;
@@ -281,6 +282,7 @@ impl pallet_balances::Config for Runtime {
 	type AccountStore = frame_system::Pallet<Runtime>;
 	type FreezeIdentifier = RuntimeFreezeReason;
 	type MaxFreezes = VariantCountOf<RuntimeFreezeReason>;
+	type DoneSlashHandler = ();
 	type WeightInfo = weights::pallet_balances::WeightInfo<Runtime>;
 }
 
@@ -298,6 +300,7 @@ impl pallet_transaction_payment::Config for Runtime {
 	type WeightToFee = WeightToFee;
 	type LengthToFee = ConstantMultiplier<Balance, TransactionByteFee>;
 	type FeeMultiplierUpdate = SlowAdjustingFeeUpdate<Self>;
+	type WeightInfo = pallet_transaction_payment::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -536,18 +539,31 @@ impl pallet_grandpa::Config for Runtime {
 		pallet_grandpa::EquivocationReportSystem<Self, Offences, Historical, ReportLongevity>;
 }
 
+impl<LocalCall> frame_system::offchain::CreateTransaction<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type Extension = TxExtension;
+
+	fn create_transaction(call: RuntimeCall, extension: TxExtension) -> UncheckedExtrinsic {
+		generic::UncheckedExtrinsic::new_transaction(call, extension).into()
+	}
+}
+
 /// Submits a transaction with the node's public and signature type. Adheres to
 /// the signed extension format of the chain.
 impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
 where
 	RuntimeCall: From<LocalCall>,
 {
-	fn create_transaction<C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>>(
+	fn create_signed_transaction<
+		C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>,
+	>(
 		call: RuntimeCall,
-		public: <Signature as Verify>::Signer,
+		public: <Signature as traits::Verify>::Signer,
 		account: AccountId,
 		nonce: Nonce,
-	) -> Option<(RuntimeCall, <UncheckedExtrinsic as traits::Extrinsic>::SignaturePayload)> {
+	) -> Option<UncheckedExtrinsic> {
 		let tip = 0;
 		// take the biggest period possible.
 		let period =
@@ -558,7 +574,7 @@ where
 			// so the actual block number is `n`.
 			.saturating_sub(1);
 		let era = Era::mortal(period, current_block);
-		let tx_ext = (
+		let tx_ext: TxExtension = (
 			pallet_network_membership::CheckNetworkMembership::<Runtime>::new(),
 			frame_system::CheckNonZeroSender::<Runtime>::new(),
 			frame_system::CheckSpecVersion::<Runtime>::new(),
@@ -578,7 +594,18 @@ where
 		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
 		let address = Indices::unlookup(account);
 		let (call, tx_ext, _) = raw_payload.deconstruct();
-		Some((call, (address, signature, tx_ext)))
+		let transaction =
+			generic::UncheckedExtrinsic::new_signed(call, address, signature, tx_ext).into();
+		Some(transaction)
+	}
+}
+
+impl<LocalCall> frame_system::offchain::CreateInherent<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_inherent(call: RuntimeCall) -> UncheckedExtrinsic {
+		generic::UncheckedExtrinsic::new_bare(call).into()
 	}
 }
 
@@ -587,12 +614,12 @@ impl frame_system::offchain::SigningTypes for Runtime {
 	type Signature = Signature;
 }
 
-impl<C> frame_system::offchain::SendTransactionTypes<C> for Runtime
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
 where
 	RuntimeCall: From<C>,
 {
 	type Extrinsic = UncheckedExtrinsic;
-	type OverarchingCall = RuntimeCall;
+	type RuntimeCall = RuntimeCall;
 }
 
 impl pallet_utility::Config for Runtime {
@@ -1194,7 +1221,7 @@ pub type SignedBlock = generic::SignedBlock<Block>;
 /// `BlockId` type as expected by this runtime.
 pub type BlockId = generic::BlockId<Block>;
 /// The `SignedExtension` to the basic transaction logic.
-pub type SignedExtra = (
+pub type TxExtension = (
 	pallet_network_membership::CheckNetworkMembership<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
@@ -1209,11 +1236,11 @@ pub type SignedExtra = (
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
-	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, TxExtension>;
 /// The payload being signed in transactions.
-pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
+pub type SignedPayload = generic::SignedPayload<RuntimeCall, TxExtension>;
 /// Extrinsic type that has already been checked.
-pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, SignedExtra>;
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, TxExtension>;
 
 pub type Migrations = migrations::Unreleased;
 /// The runtime migrations per release.
@@ -1239,7 +1266,7 @@ type EventRecord = frame_system::EventRecord<
 >;
 
 parameter_types! {
-	pub BeefySetIdSessionEntries: u32 = BondingDuration::get() * SessionsPerEra::get();
+	pub const BeefySetIdSessionEntries: u32 = BondingDuration::get() * SessionsPerEra::get();
 }
 
 impl pallet_beefy::Config for Runtime {
@@ -1320,7 +1347,7 @@ impl_runtime_apis! {
 			Runtime::metadata_at_version(version)
 		}
 
-		fn metadata_versions() -> sp_std::vec::Vec<u32> {
+		fn metadata_versions() -> alloc::vec::Vec<u32> {
 			Runtime::metadata_versions()
 		}
 	}
@@ -1604,13 +1631,6 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_transaction_weight_runtime_api::TransactionWeightApi<Block> for Runtime {
-		fn query_weight_info(uxt: <Block as BlockT>::Extrinsic) -> RuntimeDispatchWeightInfo {
-			NetworkMembership::query_weight_info(uxt)
-		}
-	}
-
-
 	impl pallet_asset_conversion::AssetConversionApi<
 		Block,
 		Balance,
@@ -1630,15 +1650,14 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentApi<
-		Block,
-		Balance,
-	> for Runtime {
-		fn query_info(uxt: <Block as BlockT>::Extrinsic, len: u32) -> RuntimeDispatchInfo<Balance> {
-			TransactionPayment::query_info(uxt, len)
+	impl pallet_transaction_payment_rpc_runtime_api::TransactionPaymentCallApi<Block, Balance, RuntimeCall>
+		for Runtime
+	{
+		fn query_call_info(call: RuntimeCall, len: u32) -> RuntimeDispatchInfo<Balance> {
+			TransactionPayment::query_call_info(call, len)
 		}
-		fn query_fee_details(uxt: <Block as BlockT>::Extrinsic, len: u32) -> FeeDetails<Balance> {
-			TransactionPayment::query_fee_details(uxt, len)
+		fn query_call_fee_details(call: RuntimeCall, len: u32) -> FeeDetails<Balance> {
+			TransactionPayment::query_call_fee_details(call, len)
 		}
 		fn query_weight_to_fee(weight: Weight) -> Balance {
 			TransactionPayment::weight_to_fee(weight)

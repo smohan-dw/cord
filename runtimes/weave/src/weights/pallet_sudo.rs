@@ -53,10 +53,10 @@ impl<T: frame_system::Config> pallet_sudo::WeightInfo for WeightInfo<T> {
 	/// Proof: `Sudo::Key` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
 	fn set_key() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `98`
+		//  Measured:  `132`
 		//  Estimated: `1517`
-		// Minimum execution time: 10_031_000 picoseconds.
-		Weight::from_parts(10_340_000, 0)
+		// Minimum execution time: 8_750_000 picoseconds.
+		Weight::from_parts(9_102_000, 0)
 			.saturating_add(Weight::from_parts(0, 1517))
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
@@ -65,10 +65,10 @@ impl<T: frame_system::Config> pallet_sudo::WeightInfo for WeightInfo<T> {
 	/// Proof: `Sudo::Key` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
 	fn sudo() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `98`
+		//  Measured:  `132`
 		//  Estimated: `1517`
-		// Minimum execution time: 10_580_000 picoseconds.
-		Weight::from_parts(10_880_000, 0)
+		// Minimum execution time: 9_607_000 picoseconds.
+		Weight::from_parts(10_139_000, 0)
 			.saturating_add(Weight::from_parts(0, 1517))
 			.saturating_add(T::DbWeight::get().reads(1))
 	}
@@ -76,10 +76,10 @@ impl<T: frame_system::Config> pallet_sudo::WeightInfo for WeightInfo<T> {
 	/// Proof: `Sudo::Key` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
 	fn sudo_as() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `98`
+		//  Measured:  `132`
 		//  Estimated: `1517`
-		// Minimum execution time: 10_450_000 picoseconds.
-		Weight::from_parts(10_970_000, 0)
+		// Minimum execution time: 9_886_000 picoseconds.
+		Weight::from_parts(10_175_000, 0)
 			.saturating_add(Weight::from_parts(0, 1517))
 			.saturating_add(T::DbWeight::get().reads(1))
 	}
@@ -87,12 +87,23 @@ impl<T: frame_system::Config> pallet_sudo::WeightInfo for WeightInfo<T> {
 	/// Proof: `Sudo::Key` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
 	fn remove_key() -> Weight {
 		// Proof Size summary in bytes:
-		//  Measured:  `98`
+		//  Measured:  `132`
 		//  Estimated: `1517`
-		// Minimum execution time: 8_850_000 picoseconds.
-		Weight::from_parts(9_320_000, 0)
+		// Minimum execution time: 7_843_000 picoseconds.
+		Weight::from_parts(8_152_000, 0)
 			.saturating_add(Weight::from_parts(0, 1517))
 			.saturating_add(T::DbWeight::get().reads(1))
 			.saturating_add(T::DbWeight::get().writes(1))
+	}
+	/// Storage: `Sudo::Key` (r:1 w:0)
+	/// Proof: `Sudo::Key` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	fn check_only_sudo_account() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `132`
+		//  Estimated: `1517`
+		// Minimum execution time: 2_875_000 picoseconds.
+		Weight::from_parts(6_803_000, 0)
+			.saturating_add(Weight::from_parts(0, 1517))
+			.saturating_add(T::DbWeight::get().reads(1))
 	}
 }

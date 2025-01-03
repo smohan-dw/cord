@@ -21,8 +21,8 @@
 
 pub mod weights;
 use codec::{Decode, Encode};
-use frame_support::dispatch::DispatchInfo;
 pub use pallet::*;
+use scale_info::TypeInfo;
 
 #[cfg(test)]
 pub mod mock;
@@ -33,13 +33,13 @@ pub mod benchmarking;
 #[cfg(test)]
 pub mod tests;
 
-use frame_support::{dispatch::GetDispatchInfo, traits::Get};
+use frame_support::{
+	pallet_prelude::TransactionSource, traits::Get, traits::OriginTrait, DefaultNoBound,
+};
 use sp_runtime::{
-	traits::{DispatchInfoOf, Dispatchable, SignedExtension, Zero},
-	transaction_validity::{
-		InvalidTransaction, TransactionLongevity, TransactionValidity, TransactionValidityError,
-		ValidTransaction,
-	},
+	impl_tx_ext_default,
+	traits::{DispatchInfoOf, TransactionExtension, Zero},
+	transaction_validity::{InvalidTransaction, ValidTransaction},
 };
 use sp_std::{collections::btree_map::BTreeMap, marker::PhantomData, prelude::*};
 
@@ -312,21 +312,6 @@ impl<T: Config> Pallet<T> {
 	pub fn is_member(member: &CordAccountOf<T>) -> bool {
 		Members::<T>::contains_key(member)
 	}
-
-	// Query the data that we know about the weight of a given `call`.
-	///
-	/// All dispatchables must be annotated with weight. This function always
-	/// returns.
-	pub fn query_weight_info<Extrinsic: sp_runtime::traits::Extrinsic + GetDispatchInfo>(
-		unchecked_extrinsic: Extrinsic,
-	) -> RuntimeDispatchWeightInfo
-	where
-		T::RuntimeCall: Dispatchable<Info = DispatchInfo>,
-	{
-		let dispatch_info = <Extrinsic as GetDispatchInfo>::get_dispatch_info(&unchecked_extrinsic);
-		let DispatchInfo { weight, class, .. } = dispatch_info;
-		RuntimeDispatchWeightInfo { weight, class }
-	}
 }
 
 impl<T: Config> sp_runtime::traits::IsMember<T::AccountId> for Pallet<T> {
@@ -342,71 +327,56 @@ impl<T: Config> network_membership::MembersCount for Pallet<T> {
 }
 
 /// The `CheckNetworkMembership` struct.
-#[derive(Encode, Decode, Clone, Eq, PartialEq, Default, scale_info::TypeInfo)]
+#[derive(Encode, Decode, DefaultNoBound, Clone, Eq, PartialEq, TypeInfo)]
 #[scale_info(skip_type_params(T))]
-pub struct CheckNetworkMembership<T: Config + Send + Sync>(PhantomData<T>);
+pub struct CheckNetworkMembership<T>(PhantomData<T>);
 
-impl<T: Config + Send + Sync> sp_std::fmt::Debug for CheckNetworkMembership<T> {
+impl<T: Config + Send + Sync> core::fmt::Debug for CheckNetworkMembership<T> {
 	#[cfg(feature = "std")]
-	fn fmt(&self, f: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+	fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
 		write!(f, "CheckNetworkMembership")
 	}
 
 	#[cfg(not(feature = "std"))]
-	fn fmt(&self, _: &mut sp_std::fmt::Formatter) -> sp_std::fmt::Result {
+	fn fmt(&self, _: &mut core::fmt::Formatter) -> core::fmt::Result {
 		Ok(())
 	}
 }
 
 impl<T: Config + Send + Sync> CheckNetworkMembership<T> {
-	/// Create new `SignedExtension` to check author permission.
+	/// Create new `TransactionExtension` to check membership.
 	pub fn new() -> Self {
-		Self(sp_std::marker::PhantomData)
+		Self(PhantomData)
 	}
 }
 
-/// Implementation of the `SignedExtension` trait for the
-/// `CheckNetworkMembership` struct.
-impl<T: Config + Send + Sync> SignedExtension for CheckNetworkMembership<T>
-where
-	T::RuntimeCall: Dispatchable<Info = DispatchInfo>,
-{
-	type AccountId = T::AccountId;
-	type Call = T::RuntimeCall;
-	type AdditionalSigned = ();
-	type Pre = ();
+impl<T: Config + Send + Sync> TransactionExtension<T::RuntimeCall> for CheckNetworkMembership<T> {
 	const IDENTIFIER: &'static str = "CheckNetworkMembership";
+	type Implicit = ();
+	type Val = ();
+	type Pre = ();
 
-	fn additional_signed(&self) -> sp_std::result::Result<(), TransactionValidityError> {
-		Ok(())
-	}
-
-	fn pre_dispatch(
-		self,
-		who: &Self::AccountId,
-		call: &Self::Call,
-		info: &DispatchInfoOf<Self::Call>,
-		len: usize,
-	) -> Result<Self::Pre, TransactionValidityError> {
-		self.validate(who, call, info, len).map(|_| ())
+	fn weight(&self, _: &T::RuntimeCall) -> sp_weights::Weight {
+		<T::WeightInfo>::check_network_membership()
 	}
 
 	fn validate(
 		&self,
-		who: &Self::AccountId,
-		_call: &Self::Call,
-		_info: &DispatchInfoOf<Self::Call>,
+		origin: <T as frame_system::Config>::RuntimeOrigin,
+		_call: &T::RuntimeCall,
+		_info: &DispatchInfoOf<T::RuntimeCall>,
 		_len: usize,
-	) -> TransactionValidity {
-		if <Members<T>>::contains_key(who) {
-			Ok(ValidTransaction {
-				priority: 0,
-				longevity: TransactionLongevity::max_value(),
-				propagate: true,
-				..Default::default()
-			})
-		} else {
-			Err(InvalidTransaction::Call.into())
+		_: Self::Implicit,
+		_inherited_implication: &impl Encode,
+		_source: TransactionSource,
+	) -> sp_runtime::traits::ValidateResult<Self::Val, T::RuntimeCall> {
+		if let Some(who) = origin.as_signer() {
+			if !<Members<T>>::contains_key(&who) {
+				return Err(InvalidTransaction::Call.into());
+			}
 		}
+		Ok((ValidTransaction::default(), (), origin))
 	}
+
+	impl_tx_ext_default!(T::RuntimeCall; prepare);
 }

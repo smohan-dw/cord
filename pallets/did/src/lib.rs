@@ -404,8 +404,9 @@ pub mod pallet {
 		fn from(error: StorageError) -> Self {
 			match error {
 				StorageError::NotFound(errors::NotFoundKind::Did) => Self::NotFound,
-				StorageError::NotFound(errors::NotFoundKind::Key(_)) =>
-					Self::VerificationKeyNotFound,
+				StorageError::NotFound(errors::NotFoundKind::Key(_)) => {
+					Self::VerificationKeyNotFound
+				},
 				StorageError::AlreadyExists => Self::AlreadyExists,
 				StorageError::MaxPublicKeysExceeded => Self::MaxPublicKeysExceeded,
 				StorageError::MaxTotalKeyAgreementKeysExceeded => Self::MaxKeyAgreementKeysExceeded,
@@ -428,8 +429,9 @@ pub mod pallet {
 	impl<T> From<InputError> for Error<T> {
 		fn from(error: InputError) -> Self {
 			match error {
-				InputError::MaxKeyAgreementKeysLimitExceeded =>
-					Self::MaxNewKeyAgreementKeysLimitExceeded,
+				InputError::MaxKeyAgreementKeysLimitExceeded => {
+					Self::MaxNewKeyAgreementKeysLimitExceeded
+				},
 				InputError::MaxIdLengthExceeded => Self::MaxServiceIdLengthExceeded,
 				InputError::MaxServicesCountExceeded => Self::MaxNumberOfServicesExceeded,
 				InputError::MaxTypeCountExceeded => Self::MaxNumberOfTypesPerServiceExceeded,
@@ -966,7 +968,7 @@ pub mod pallet {
 			.max(<T as pallet::Config>::WeightInfo::submit_did_call_sr25519_key())
 			.max(<T as pallet::Config>::WeightInfo::submit_did_call_ecdsa_key());
 
-			(max_sig_weight.saturating_add(di.weight), di.class)
+			(max_sig_weight.saturating_add(di.call_weight), di.class)
 		})]
 		pub fn submit_did_call(
 			origin: OriginFor<T>,
@@ -1034,7 +1036,7 @@ pub mod pallet {
 		#[pallet::weight({
 			let dispatch_info = call.get_dispatch_info();
 
-			(<T as pallet::Config>::WeightInfo::dispatch_as().saturating_add(dispatch_info.weight), dispatch_info.class)
+			(<T as pallet::Config>::WeightInfo::dispatch_as().saturating_add(dispatch_info.call_weight), dispatch_info.class)
 		})]
 		pub fn dispatch_as(
 			origin: OriginFor<T>,

@@ -76,6 +76,7 @@ sp-runtime = { features = ["serde"], workspace = true }
 sp-staking = { features = ["serde"], workspace = true }
 sp-core = { features = ["serde"], workspace = true }
 sp-io = { workspace = true }
+sp-keyring = { workspace = true }
 sp-session = { workspace = true }
 sp-statement-store = { workspace = true }
 sp-storage = { workspace = true }
