@@ -207,7 +207,7 @@ fn braid_sign_call(
 	use cord_braid_runtime as runtime;
 	use sp_core::Pair;
 
-	let extra: runtime::SignedExtra = (
+	let extra: runtime::TxExtension = (
 		pallet_network_membership::CheckNetworkMembership::<runtime::Runtime>::new(),
 		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
@@ -263,7 +263,7 @@ fn loom_sign_call(
 	use cord_loom_runtime as runtime;
 	use sp_core::Pair;
 
-	let extra: runtime::SignedExtra = (
+	let extra: runtime::TxExtension = (
 		pallet_network_membership::CheckNetworkMembership::<runtime::Runtime>::new(),
 		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),
@@ -319,7 +319,7 @@ fn weave_sign_call(
 	use cord_weave_runtime as runtime;
 	use sp_core::Pair;
 
-	let extra: runtime::SignedExtra = (
+	let extra: runtime::TxExtension = (
 		//pallet_network_membership::CheckNetworkMembership::<runtime::Runtime>::new(),
 		frame_system::CheckNonZeroSender::<runtime::Runtime>::new(),
 		frame_system::CheckSpecVersion::<runtime::Runtime>::new(),

@@ -104,11 +104,13 @@ impl SubstrateCli for Cli {
 				_ => Box::new(chain_spec::weave_development_config()?),
 			},
 			#[cfg(not(feature = "braid-native"))]
-			name if name.starts_with("braid-") && !name.ends_with(".json") =>
-				Err(format!("`{}` only supported with `braid-native` feature enabled.", name))?,
+			name if name.starts_with("braid-") && !name.ends_with(".json") => {
+				Err(format!("`{}` only supported with `braid-native` feature enabled.", name))?
+			},
 			#[cfg(not(feature = "loom-native"))]
-			name if name.starts_with("loom-") && !name.ends_with(".json") =>
-				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?,
+			name if name.starts_with("loom-") && !name.ends_with(".json") => {
+				Err(format!("`{}` only supported with `loom-native` feature enabled.", name))?
+			},
 			// "weave" => Box::new(chain_spec::weave_config()?),
 			path => {
 				let path = std::path::PathBuf::from(path);
@@ -296,11 +298,12 @@ pub fn run() -> Result<()> {
 						let ext_builder = RemarkBuilder::new(partial.client.clone(),config.chain_spec.identify_chain());
 
 						cmd.run(
-							config,
+							config.chain_spec.name().into(),
 							partial.client,
 							inherent_benchmark_data()?,
 							Vec::new(),
 							&ext_builder,
+							false
 						)
 					},
 					BenchmarkCmd::Extrinsic(cmd) => {

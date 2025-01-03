@@ -27,7 +27,6 @@ use crate::cli::Cli;
 use {
 	sc_client_api::BlockBackend,
 	sc_consensus_grandpa::{self},
-	sc_transaction_pool_api::OffchainTransactionPoolFactory,
 };
 
 #[cfg(feature = "full-node")]
@@ -74,7 +73,10 @@ use sc_consensus_babe::{self, SlotProportion};
 use sc_network::{
 	event::Event, service::traits::NetworkService, NetworkBackend, NetworkEventStream,
 };
-use sc_network_sync::{SyncingService, WarpSyncConfig};
+use sc_network_sync::{strategy::warp::WarpSyncConfig, SyncingService};
+use sc_transaction_pool::TransactionPoolHandle;
+use sc_transaction_pool_api::OffchainTransactionPoolFactory;
+
 pub use sp_runtime::{OpaqueExtrinsic, SaturatedConversion};
 
 #[cfg(feature = "braid-native")]
@@ -276,7 +278,7 @@ type FullBeefyBlockImport<InnerBlockImport> = sc_consensus_beefy::import::BeefyB
 	AuthorityId,
 >;
 /// The transaction pool type defintion.
-pub type TransactionPool = sc_transaction_pool::FullPool<Block, FullClient>;
+pub type TransactionPool = sc_transaction_pool::TransactionPoolHandle<Block, FullClient>;
 
 /// Creates PartialComponents for a node.
 /// Enables chain operations for cases when full node is unnecessary.
@@ -289,7 +291,7 @@ pub fn new_partial(
 		FullBackend,
 		FullSelectChain,
 		sc_consensus::DefaultImportQueue<Block>,
-		sc_transaction_pool::FullPool<Block, FullClient>,
+		sc_transaction_pool::TransactionPoolHandle<Block, FullClient>,
 		(
 			impl Fn(
 				sc_rpc::SubscriptionTaskExecutor,
@@ -356,12 +358,15 @@ pub fn new_partial(
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
-	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
-		config.transaction_pool.clone(),
-		config.role.is_authority().into(),
-		config.prometheus_registry(),
-		task_manager.spawn_essential_handle(),
-		client.clone(),
+	let transaction_pool = Arc::from(
+		sc_transaction_pool::Builder::new(
+			task_manager.spawn_essential_handle(),
+			client.clone(),
+			config.role.is_authority().into(),
+		)
+		.with_options(config.transaction_pool.clone())
+		.with_prometheus(config.prometheus_registry())
+		.build(),
 	);
 
 	// #[allow(clippy::redundant_clone)]
@@ -507,7 +512,7 @@ pub struct NewFullBase {
 	/// The syncing service of the node.
 	pub sync: Arc<SyncingService<Block>>,
 	/// The transaction pool of the node.
-	pub transaction_pool: Arc<TransactionPool>,
+	pub transaction_pool: Arc<TransactionPoolHandle<Block, FullClient>>,
 	/// The rpc handlers of the node.
 	pub rpc_handlers: RpcHandlers,
 }
@@ -527,11 +532,11 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	),
 ) -> Result<NewFullBase, ServiceError> {
 	let is_offchain_indexing_enabled = config.offchain_worker.indexing_enabled;
-	let role = config.role.clone();
+	let role = config.role;
 	let force_authoring = config.force_authoring;
-	let backoff_authoring_blocks = if config.chain_spec.is_braid() ||
-		config.chain_spec.is_loom() ||
-		config.chain_spec.is_weave()
+	let backoff_authoring_blocks = if config.chain_spec.is_braid()
+		|| config.chain_spec.is_loom()
+		|| config.chain_spec.is_weave()
 	{
 		// the block authoring backoff is disabled on production networks
 		None
@@ -548,10 +553,12 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	let enable_offchain_worker = config.offchain_worker.enabled;
 
 	let hwbench = (!disable_hardware_benchmarks)
-		.then_some(config.database.path().map(|database_path| {
-			let _ = std::fs::create_dir_all(&database_path);
-			sc_sysinfo::gather_hwbench(Some(database_path), &SUBSTRATE_REFERENCE_HARDWARE)
-		}))
+		.then(|| {
+			config.database.path().map(|database_path| {
+				let _ = std::fs::create_dir_all(&database_path);
+				sc_sysinfo::gather_hwbench(Some(database_path), &SUBSTRATE_REFERENCE_HARDWARE)
+			})
+		})
 		.flatten();
 
 	let sc_service::PartialComponents {
@@ -878,9 +885,7 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	);
 
 	if enable_offchain_worker {
-		task_manager.spawn_handle().spawn(
-			"offchain-workers-runner",
-			"offchain-work",
+		let offchain_workers =
 			sc_offchain::OffchainWorkers::new(sc_offchain::OffchainWorkerOptions {
 				runtime_api_provider: client.clone(),
 				keystore: Some(keystore_container.keystore()),
@@ -894,9 +899,11 @@ pub fn new_full_base<N: NetworkBackend<Block, <Block as BlockT>::Hash>>(
 				custom_extensions: move |_| {
 					vec![Box::new(statement_store.clone().as_statement_store_ext()) as Box<_>]
 				},
-			})
-			.run(client.clone(), task_manager.spawn_handle())
-			.boxed(),
+			})?;
+		task_manager.spawn_handle().spawn(
+			"offchain-workers-runner",
+			"offchain-work",
+			offchain_workers.run(client.clone(), task_manager.spawn_handle()).boxed(),
 		);
 	}
 
