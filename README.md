@@ -94,7 +94,7 @@ To get your local CORD node up and running, follow these steps:
    If you want to run the Braid runtime, use the following command:
 
    ```bash
-   ./target/release/cord braid --dev
+   ./target/release/cord --chain braid-dev --dev
    ```
 
 3. Start the Loom node in development mode:
@@ -102,7 +102,7 @@ To get your local CORD node up and running, follow these steps:
    To run the Loom runtime, use this command:
 
    ```bash
-   ./target/release/cord loom --dev
+   ./target/release/cord --chain loom-dev --dev
    ```
 
 4. Verify your node is up and running successfully by reviewing the output displayed in the terminal.
