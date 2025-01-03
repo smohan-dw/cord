@@ -17,6 +17,7 @@
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
 //! A collection of CORD specific RPC methods.
+#![warn(unused_crate_dependencies)]
 
 use std::sync::Arc;
 
