@@ -97,4 +97,13 @@ impl<T: frame_system::Config> pallet_network_membership::WeightInfo for WeightIn
 			.saturating_add(T::DbWeight::get().reads(4))
 			.saturating_add(T::DbWeight::get().writes(4))
 	}
+	fn check_network_membership() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `101`
+		//  Estimated: `3593`
+		// Minimum execution time: 5_689_000 picoseconds.
+		Weight::from_parts(6_000_000, 3593)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }

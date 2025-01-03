@@ -193,7 +193,7 @@ pub mod pallet {
 				Error::<T>::NetworkConfigAlreadyAdded
 			);
 
-			let (t_network_id, t_cord_genesis_hash, t_network_genesis_hash, t_account_id) =
+			let (t_network_id, _t_cord_genesis_hash, t_network_genesis_hash, t_account_id) =
 				Self::resolve(&token)?;
 			let genesis_hash = <frame_system::Pallet<T>>::block_hash(BlockNumberFor::<T>::zero());
 			ensure!(t_network_genesis_hash == genesis_hash, Error::<T>::InvalidNetworkGenesisHead);

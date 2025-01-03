@@ -52,6 +52,7 @@ pub trait WeightInfo {
 	fn nominate() -> Weight;
 	fn renew() -> Weight;
 	fn revoke() -> Weight;
+	fn check_network_membership() -> Weight;
 }
 
 /// Weights for `pallet_network_membership` using the CORD node and recommended hardware.
@@ -102,6 +103,15 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 			.saturating_add(T::DbWeight::get().reads(4_u64))
 			.saturating_add(T::DbWeight::get().writes(4_u64))
 	}
+	fn check_network_membership() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `101`
+		//  Estimated: `3593`
+		// Minimum execution time: 5_689_000 picoseconds.
+		Weight::from_parts(6_000_000, 3593)
+			.saturating_add(T::DbWeight::get().reads(1_u64))
+			.saturating_add(T::DbWeight::get().writes(1_u64))
+	}
 }
 
 // For backwards compatibility and tests.
@@ -150,5 +160,14 @@ impl WeightInfo for () {
 		Weight::from_parts(28_060_000, 35487)
 			.saturating_add(RocksDbWeight::get().reads(4_u64))
 			.saturating_add(RocksDbWeight::get().writes(4_u64))
+	}
+	fn check_network_membership() -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `101`
+		//  Estimated: `3593`
+		// Minimum execution time: 5_689_000 picoseconds.
+		Weight::from_parts(6_000_000, 3593)
+			.saturating_add(RocksDbWeight::get().reads(1_u64))
+			.saturating_add(RocksDbWeight::get().writes(1_u64))
 	}
 }

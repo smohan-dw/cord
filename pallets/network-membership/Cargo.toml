@@ -27,6 +27,7 @@ frame-support = { workspace = true }
 sp-runtime = { workspace = true }
 sp-std = { workspace = true }
 sp-core = { optional = true, workspace = true }
+sp-weights = { features = ["serde"], workspace = true }
 frame-benchmarking = { optional = true, workspace = true }
 
 [features]
@@ -35,7 +36,7 @@ runtime-benchmarks = [
 	"frame-benchmarking/runtime-benchmarks",
 	"frame-system/runtime-benchmarks",
 	"sp-runtime/runtime-benchmarks",
-	"frame-support/runtime-benchmarks"
+	"frame-support/runtime-benchmarks",
 ]
 std = [
 	"codec/std",
@@ -48,10 +49,11 @@ std = [
 	"sp-std/std",
 	"serde/std",
 	"frame-support/std",
-	"sp-io/std"
+	"sp-io/std",
+	"sp-weights/std",
 ]
 try-runtime = [
 	"frame-support/try-runtime",
 	"frame-system/try-runtime",
-	"sp-runtime/try-runtime"
+	"sp-runtime/try-runtime",
 ]

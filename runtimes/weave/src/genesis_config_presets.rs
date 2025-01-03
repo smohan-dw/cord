@@ -20,6 +20,9 @@
 
 use crate::*;
 
+#[cfg(not(feature = "std"))]
+use alloc::format;
+use alloc::{vec, vec::Vec};
 use cord_primitives::AccountId;
 use cord_weave_runtime_constants::currency::UNITS;
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -29,10 +32,12 @@ use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{sr25519, Pair, Public};
 use sp_genesis_builder::PresetId;
+use sp_keyring::Sr25519Keyring;
 use sp_runtime::{traits::IdentifyAccount, Perbill};
-#[cfg(not(feature = "std"))]
-use sp_std::alloc::format;
-use sp_std::{vec, vec::Vec};
+
+// #[cfg(not(feature = "std"))]
+// use sp_std::alloc::format;
+// use sp_std::{vec, vec::Vec};
 
 /// Helper function to generate a crypto pair from seed
 fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
@@ -65,21 +70,9 @@ fn get_authority_keys_from_seed(
 }
 
 fn testnet_accounts() -> Vec<AccountId> {
-	vec![
-		get_account_id_from_seed::<sr25519::Public>("Alice"),
-		get_account_id_from_seed::<sr25519::Public>("Bob"),
-		get_account_id_from_seed::<sr25519::Public>("Charlie"),
-		get_account_id_from_seed::<sr25519::Public>("Dave"),
-		get_account_id_from_seed::<sr25519::Public>("Eve"),
-		get_account_id_from_seed::<sr25519::Public>("Ferdie"),
-		get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
-		get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
-	]
+	Sr25519Keyring::well_known().map(|k| k.to_account_id()).collect()
 }
+
 #[allow(clippy::type_complexity)]
 fn cord_weave_testnet_genesis(
 	initial_authorities: Vec<(
@@ -175,10 +168,10 @@ pub fn preset_names() -> Vec<PresetId> {
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.
-pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<sp_std::vec::Vec<u8>> {
-	let patch = match id.try_into() {
-		Ok("development") => cord_weave_development_config_genesis(),
-		Ok("local_testnet") => cord_weave_local_testnet_genesis(),
+pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<Vec<u8>> {
+	let patch = match id.as_ref() {
+		"development" => cord_weave_development_config_genesis(),
+		"local_testnet" => cord_weave_local_testnet_genesis(),
 		_ => return None,
 	};
 	Some(
@@ -187,6 +180,18 @@ pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<sp_std::vec::Vec<
 			.into_bytes(),
 	)
 }
+// pub fn get_preset(id: &sp_genesis_builder::PresetId) -> Option<Vec<u8>> {
+// 	let patch = match id.as_ref() {
+// 		Ok("development") => cord_weave_development_config_genesis(),
+// 		Ok("local_testnet") => cord_weave_local_testnet_genesis(),
+// 		_ => return None,
+// 	};
+// 	Some(
+// 		serde_json::to_string(&patch)
+// 			.expect("serialization to json is expected to work. qed.")
+// 			.into_bytes(),
+// 	)
+// }
 
 #[cfg(test)]
 mod tests {
