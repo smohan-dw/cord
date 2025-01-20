@@ -278,12 +278,15 @@ fn asset_unauthorized_operation_should_fail() {
 			authorization_id.clone()
 		));
 
-		assert_err!(Asset::issue(
-			DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(), // Unauthorized author attempting the action
-			issue_entry.clone(),
-			issue_entry_digest,
-			unauthorized_authorization_id.clone()
-		), Error::<Test>::UnauthorizedOperation);
+		assert_err!(
+			Asset::issue(
+				DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(), // Unauthorized author attempting the action
+				issue_entry.clone(),
+				issue_entry_digest,
+				unauthorized_authorization_id.clone()
+			),
+			Error::<Test>::UnauthorizedOperation
+		);
 
 		assert_ok!(Asset::issue(
 			DoubleOrigin(author.clone(), creator.clone()).into(),
@@ -292,29 +295,32 @@ fn asset_unauthorized_operation_should_fail() {
 			authorization_id.clone()
 		));
 
-		assert_err!(Asset::transfer(
-			DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
-			transfer_entry.clone(),
-			transfer_entry_digest,
-		),
-		Error::<Test>::UnauthorizedOperation
+		assert_err!(
+			Asset::transfer(
+				DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
+				transfer_entry.clone(),
+				transfer_entry_digest,
+			),
+			Error::<Test>::UnauthorizedOperation
 		);
 
-		assert_err!(Asset::transfer(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			unauthorized_transfer_entry.clone(),
-			unauthorized_entry_digest,
-		),
-		Error::<Test>::UnauthorizedOperation
+		assert_err!(
+			Asset::transfer(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				unauthorized_transfer_entry.clone(),
+				unauthorized_entry_digest,
+			),
+			Error::<Test>::UnauthorizedOperation
 		);
 
-		assert_err!(Asset::status_change(
-			DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
-			asset_id.clone(),
-			Some(instance_id.clone()),
-			AssetStatusOf::INACTIVE
-		),
-		Error::<Test>::UnauthorizedOperation
+		assert_err!(
+			Asset::status_change(
+				DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
+				asset_id.clone(),
+				Some(instance_id.clone()),
+				AssetStatusOf::INACTIVE
+			),
+			Error::<Test>::UnauthorizedOperation
 		);
 
 		assert_ok!(Asset::vc_create(
@@ -324,13 +330,14 @@ fn asset_unauthorized_operation_should_fail() {
 			authorization_id.clone()
 		));
 
-		assert_err!(Asset::vc_issue(
-			DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
-			issue_entry.clone(),
-			issue_entry_digest,
-			unauthorized_authorization_id
-		),
-		Error::<Test>::UnauthorizedOperation
+		assert_err!(
+			Asset::vc_issue(
+				DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
+				issue_entry.clone(),
+				issue_entry_digest,
+				unauthorized_authorization_id
+			),
+			Error::<Test>::UnauthorizedOperation
 		);
 
 		assert_ok!(Asset::vc_issue(
@@ -340,31 +347,33 @@ fn asset_unauthorized_operation_should_fail() {
 			authorization_id
 		));
 
-		assert_err!(Asset::vc_transfer(
-			DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
-			transfer_entry.clone(),
-			transfer_entry_digest,
-		),
-		Error::<Test>::UnauthorizedOperation
+		assert_err!(
+			Asset::vc_transfer(
+				DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
+				transfer_entry.clone(),
+				transfer_entry_digest,
+			),
+			Error::<Test>::UnauthorizedOperation
 		);
 
-		assert_err!(Asset::vc_transfer(
-			DoubleOrigin(author.clone(), creator.clone()).into(),
-			unauthorized_transfer_entry.clone(),
-			unauthorized_entry_digest,
-		),
-		Error::<Test>::UnauthorizedOperation
+		assert_err!(
+			Asset::vc_transfer(
+				DoubleOrigin(author.clone(), creator.clone()).into(),
+				unauthorized_transfer_entry.clone(),
+				unauthorized_entry_digest,
+			),
+			Error::<Test>::UnauthorizedOperation
 		);
 
-		assert_err!(Asset::vc_status_change(
-			DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
-			asset_id.clone(),
-			Some(instance_id.clone()),
-			AssetStatusOf::INACTIVE
-		),
-		Error::<Test>::UnauthorizedOperation
+		assert_err!(
+			Asset::vc_status_change(
+				DoubleOrigin(unauthorized_author.clone(), unauthorized_creator.clone()).into(),
+				asset_id.clone(),
+				Some(instance_id.clone()),
+				AssetStatusOf::INACTIVE
+			),
+			Error::<Test>::UnauthorizedOperation
 		);
-
 	});
 }
 
