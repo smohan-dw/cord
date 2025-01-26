@@ -1302,10 +1302,6 @@ parameter_types! {
 	pub const MaxEventsHistory: u32 = u32::MAX;
 }
 
-// impl identifier::Config for Runtime {
-// 	type MaxEventsHistory = MaxEventsHistory;
-// }
-
 impl pallet_remark::Config for Runtime {
 	type WeightInfo = weights::pallet_remark::WeightInfo<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
