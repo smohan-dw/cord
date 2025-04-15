@@ -22,13 +22,17 @@
 extern crate alloc;
 use alloc::vec::Vec;
 pub mod delegation;
+pub mod objects;
 pub mod registry;
 
 use alloc::str;
 use frame_support::{ensure, storage::types::StorageMap};
 pub mod types;
 pub use crate::{pallet::*, types::*};
-use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss58Identifier};
+use cord_uri::{
+	EntryTypeOf, EventStamp, Identifier, RegistryIdentifierStatus, Ss58Identifier,
+	StorageNodeStatus,
+};
 use frame_support::dispatch::DispatchResult;
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::WeightInfo;
@@ -45,6 +49,7 @@ mod tests;
 /// Identifier
 pub type CollectionIdentifierOf = Ss58Identifier;
 pub type RegistryIdentifierOf = Ss58Identifier;
+pub type ObjectIdentifierOf = Ss58Identifier;
 pub type HashOf<T> = <T as frame_system::Config>::Hash;
 pub(crate) type CordAccountOf<T> = <T as frame_system::Config>::AccountId;
 
@@ -60,6 +65,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + cord_uri::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+		type StorageNodeProvider: StorageNodeStatus<AccountId = Self::AccountId>;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -93,6 +99,32 @@ pub mod pallet {
 		OptionQuery,
 	>;
 
+	#[pallet::storage]
+	pub type ObjectHistory<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		ObjectIdentifierOf,
+		Blake2_128Concat,
+		T::Hash,
+		ObjectDetails<CordAccountOf<T>, HashOf<T>, Status>,
+		OptionQuery,
+	>;
+
+	#[pallet::storage]
+	pub type ObjectState<T: Config> =
+		StorageMap<_, Blake2_128Concat, ObjectIdentifierOf, T::Hash, OptionQuery>;
+
+	#[pallet::storage]
+	pub type ObjectLookup<T: Config> = StorageDoubleMap<
+		_,
+		Blake2_128Concat,
+		T::Hash,
+		Blake2_128Concat,
+		RegistryIdentifierOf,
+		ObjectIdentifierOf,
+		OptionQuery,
+	>;
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
@@ -102,6 +134,10 @@ pub mod pallet {
 		RegistryUpdated { registry: RegistryIdentifierOf, authority: CordAccountOf<T> },
 		RegistryArchived { registry: RegistryIdentifierOf, authority: CordAccountOf<T> },
 		RegistryRestored { registry: RegistryIdentifierOf, authority: CordAccountOf<T> },
+		ObjectCreated { object: ObjectIdentifierOf, creator: CordAccountOf<T> },
+		ObjectUpdated { object: ObjectIdentifierOf, authority: CordAccountOf<T> },
+		ObjectRevoked { object: ObjectIdentifierOf, authority: CordAccountOf<T> },
+		ObjectRestored { object: ObjectIdentifierOf, authority: CordAccountOf<T> },
 	}
 
 	#[pallet::error]
@@ -127,6 +163,12 @@ pub mod pallet {
 		InvalidEntryTypeInput,
 		/// The activity update operation failed.
 		ActivityUpdateFailed,
+		/// The object already exists.
+		ObjectAlreadyExists,
+		/// The object was not found.
+		ObjectNotFound,
+		/// The object is not active.
+		ObjectNotActive,
 	}
 
 	#[pallet::call]
@@ -172,11 +214,11 @@ pub mod pallet {
 		) -> DispatchResult {
 			let creator = ensure_signed(origin)?;
 			let registry_id = registry::create_registry::<T>(
+				creator.clone(),
 				tx_hash,
 				doc_id,
 				doc_author_id,
 				doc_node_id,
-				creator.clone(),
 			)?;
 			Self::deposit_event(Event::RegistryCreated { registry: registry_id, creator });
 			Ok(())
@@ -280,7 +322,7 @@ impl<T: Config> Pallet<T> {
 	}
 }
 
-impl<T: Config> RegistryIdentifierCheck for Pallet<T> {
+impl<T: Config> RegistryIdentifierStatus for Pallet<T> {
 	fn ensure_active_registry(registry_id: &Ss58Identifier) -> DispatchResult {
 		Self::inherent_ensure_active_registry(registry_id)
 	}

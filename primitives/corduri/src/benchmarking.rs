@@ -26,32 +26,36 @@ use frame_support::traits::Get;
 use sp_std::prelude::*;
 
 benchmarks! {
-	get_or_add_pallet_index {
-		let pallet_name: &str = "TestPallet";
-	}: {
-		let _ = Pallet::<T>::get_or_add_pallet_index(pallet_name)?;
-	}
-	verify {
-		let bounded_name: BoundedVec<u8, frame_support::traits::ConstU32<64>> =
-			pallet_name.as_bytes().to_vec().try_into().expect("BoundedVec creation should not fail");
-		assert!(pallet::PalletIndex::<T>::contains_key(&bounded_name));
-	}
+   get_or_add_pallet_index {
+	   let pallet_name: &str = "TestPallet";
+   }: {
+	   let _ = Pallet::<T>::get_or_add_pallet_index(pallet_name)?;
+   }
+   verify {
+	   let bounded_name: BoundedVec<u8, frame_support::traits::ConstU32<64>> =
+		   pallet_name.as_bytes().to_vec().try_into().expect("BoundedVec creation should not fail");
+	   assert!(pallet::PalletIndex::<T>::contains_key(&bounded_name));
+   }
 
-	resolve_pallet_name {
-		let pallet_name: &str = "TestPallet";
-		let index = Pallet::<T>::get_or_add_pallet_index(pallet_name)?;
-	}: {
-		let _ = Pallet::<T>::resolve_pallet_name(index)?;
-	}
+   resolve_pallet_name {
+	   let pallet_name: &str = "TestPallet";
+	   let index = Pallet::<T>::get_or_add_pallet_index(pallet_name)?;
+   }: {
+	   let _ = Pallet::<T>::resolve_pallet_name(index)?;
+   }
 
-	record_activity {
-		let raw_identifier = vec![0u8; 10];
-		let identifier = Ss58Identifier::try_from(raw_identifier).unwrap();
-		// Create a dummy entry (a bounded vector of 10 bytes).
-		let entry: EntryTypeOf = vec![1u8; 10].try_into().unwrap();
-		// Create a fixed event stamp.
-		let stamp = EventStamp { height: 1, index: 0 };
-	}: {
-		Pallet::<T>::record_activity(&identifier, entry.clone(), stamp)?;
-	}
+   // Benchmark the new update_state functionality.
+   update_state {
+	   let digest_bytes: Vec<u8> = vec![1u8; 32];
+	   let identifier = Ss58Identifier::to_encoded(&digest_bytes, 100, 5)
+		   .expect("Identifier encoding should succeed");
+	   let event: EventTypeOf = vec![2u8; 10]
+		   .try_into()
+		   .expect("Should create valid bounded vector");
+	   let stamp = EventStamp { height: 1, index: 0 };
+	   let new_digest: HashOf<T> = T::Hash::default();
+   }: {
+	   Pallet::<T>::update_state(&identifier, new_digest, event.clone(), stamp.clone())?;
+   }
+
 }

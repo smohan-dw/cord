@@ -26,7 +26,7 @@ pub mod types;
 pub use crate::{pallet::*, types::*};
 use alloc::vec::Vec;
 use codec::Encode;
-use cord_uri::{EntryTypeOf, EventStamp, Identifier, RegistryIdentifierCheck, Ss58Identifier};
+use cord_uri::{EventStamp, EventTypeOf, Identifier, RegistryIdentifierStatus, Ss58Identifier};
 use frame_support::dispatch::DispatchResult;
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::WeightInfo;
@@ -58,7 +58,7 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config + cord_uri::Config {
 		type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
-		type Registry: RegistryIdentifierCheck;
+		type Registry: RegistryIdentifierStatus;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: WeightInfo;
 	}
@@ -382,10 +382,10 @@ impl<T: Config> Pallet<T> {
 
 	/// Records an activity using a provided event message.
 	pub fn record_activity(identifier: &Ss58Identifier, msg: &[u8]) -> DispatchResult {
-		let entry: EntryTypeOf =
+		let event: EventTypeOf =
 			msg.to_vec().try_into().map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
 		let stamp = EventStamp::current::<T>();
-		<cord_uri::Pallet<T> as Identifier>::record_activity(identifier, entry, stamp)
+		<cord_uri::Pallet<T> as Identifier>::record_activity(identifier, event, stamp)
 			.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
 		Ok(())
 	}

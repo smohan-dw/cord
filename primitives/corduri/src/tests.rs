@@ -20,6 +20,7 @@
 use super::*;
 use crate::mock::{new_test_ext, Test};
 use frame_support::{assert_err, assert_ok};
+use sp_core::H256;
 use sp_std::prelude::*;
 
 /// Test that a valid pallet name can be stored and returns a consistent index.
@@ -80,24 +81,26 @@ fn set_and_get_network_id() {
 	});
 }
 
-/// Test that a valid activity record is stored correctly.
 #[test]
 fn record_activity_positive() {
 	new_test_ext().execute_with(|| {
-		let raw_identifier = vec![1u8; 10];
-		let identifier =
-			Ss58Identifier::try_from(raw_identifier).expect("Should create a valid Ss58Identifier");
-		let entry: EntryTypeOf =
+		let id_digest = vec![1u8; 32];
+		let identifier = Ss58Identifier::to_encoded(id_digest, 100, 5)
+			.expect("Identifier encoding should succeed");
+		let digest = H256::random();
+
+		let event: EventTypeOf =
 			vec![1u8; 10].try_into().expect("Should create a valid bounded vector");
 		let stamp = EventStamp { height: 1, index: 0 };
 
-		assert_ok!(Pallet::<Test>::record_activity(&identifier, entry.clone(), stamp.clone()));
+		assert_ok!(Pallet::<Test>::state_event(&identifier, digest, event.clone(), stamp.clone()));
 
-		let counter = ActivityCounter::<Test>::get(&identifier);
+		let counter = StateVersion::<Test>::get(&identifier);
 		assert_eq!(counter, 1);
+
 		let record =
-			ActivityChain::<Test>::get(&identifier, 0).expect("An activity record should exist");
-		assert_eq!(record.entry, entry);
+			StateHistory::<Test>::get(&identifier, 0).expect("An activity record should exist");
+		assert_eq!(record.event, event);
 		assert_eq!(record.event_stamp, stamp);
 	});
 }

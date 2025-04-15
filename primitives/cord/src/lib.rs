@@ -20,6 +20,8 @@
 #![warn(unused_crate_dependencies)]
 
 extern crate alloc;
+pub mod element;
+pub use crate::element::Element;
 use alloc::vec::Vec;
 use codec::{CompactAs, Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;

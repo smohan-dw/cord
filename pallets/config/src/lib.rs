@@ -26,7 +26,7 @@ use alloc::{str, vec::Vec};
 use bs58;
 use codec::{Decode, Encode, MaxEncodedLen};
 use cord_primitives::{Id as NetworkId, NetworkInfoProvider};
-use cord_uri::{EntryTypeOf, EventStamp, Identifier, Ss58Identifier};
+use cord_uri::{EventStamp, EventTypeOf, Identifier, Ss58Identifier, StorageNodeStatus};
 use fluent_uri::Uri;
 use frame_support::{
 	pallet_prelude::*,
@@ -82,6 +82,8 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		/// The caller does not have the required permissions.
+		UnauthorizedOperation,
 		/// The identifier activity update failed
 		ActivityUpdateFailed,
 		/// The network information was not found.
@@ -116,6 +118,10 @@ pub mod pallet {
 		InvalidNetworkId,
 		/// The origin of the operation is not authorized or invalid.
 		Badorigin,
+		/// The requested node was not found.
+		NodeNotFound,
+		/// The requested node is not active.
+		NodeNotActive,
 	}
 
 	#[pallet::storage]
@@ -446,13 +452,13 @@ pub mod pallet {
 				Error::<T>::StorageConfigAlreadyAdded
 			);
 
-			let entry: EntryTypeOf = b"StorageNodeAdded"
+			let event: EventTypeOf = b"StorageNodeAdded"
 				.to_vec()
 				.try_into()
 				.map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
 			let stamp = EventStamp::current::<T>();
 
-			<cord_uri::Pallet<T> as Identifier>::record_activity(&identifier, entry, stamp)
+			<cord_uri::Pallet<T> as Identifier>::record_activity(&identifier, event, stamp)
 				.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
 
 			StorageNodeConfigInfo::<T>::insert(&identifier, (&bounded_node_id, &author, true));
@@ -497,13 +503,13 @@ pub mod pallet {
 
 			let updated_author = author.unwrap_or(existing_author);
 
-			let entry: EntryTypeOf = b"StorageNodeUpdated"
+			let event: EventTypeOf = b"StorageNodeUpdated"
 				.to_vec()
 				.try_into()
 				.map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
 			let stamp = EventStamp::current::<T>();
 
-			<cord_uri::Pallet<T> as Identifier>::record_activity(&identifier, entry, stamp)
+			<cord_uri::Pallet<T> as Identifier>::record_activity(&identifier, event, stamp)
 				.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
 
 			StorageNodeConfigInfo::<T>::insert(
@@ -539,13 +545,13 @@ pub mod pallet {
 				StorageNodeConfigInfo::<T>::get(&identifier)
 					.ok_or(Error::<T>::StorageConfigNotFound)?;
 
-			let entry: EntryTypeOf = b"StorageNodeRemoved"
+			let event: EventTypeOf = b"StorageNodeRemoved"
 				.to_vec()
 				.try_into()
 				.map_err(|_| Error::<T>::InvalidEntryTypeInput)?;
 			let stamp = EventStamp::current::<T>();
 
-			<cord_uri::Pallet<T> as Identifier>::record_activity(&identifier, entry, stamp)
+			<cord_uri::Pallet<T> as Identifier>::record_activity(&identifier, event, stamp)
 				.map_err(|_| Error::<T>::ActivityUpdateFailed)?;
 
 			StorageNodes::<T>::remove(&bounded_node_id);
@@ -696,66 +702,31 @@ impl<T: Config> cord_primitives::IsPermissioned for Pallet<T> {
 	}
 }
 
-pub trait StorageNodeInterface {
-	type AccountId;
-	type NodeId;
-	type Identifier;
-
-	/// Get the details of a storage node by its `node_id`.
-	fn get_storage_node_details(
-		node_id: Self::NodeId,
-	) -> Option<(Self::Identifier, Self::AccountId, bool)>;
-
-	/// Get the details of a storage node by its `identifier`.
-	fn get_storage_node_details_by_identifier(
-		identifier: Self::Identifier,
-	) -> Option<(Self::NodeId, Self::AccountId, bool)>;
-
-	/// Check if a storage node is active by its `node_id`.
-	fn is_storage_node_active(node_id: Self::NodeId) -> bool;
-
-	/// Check if a storage node is active by its `identifier`.
-	fn is_storage_node_active_by_identifier(identifier: Self::Identifier) -> bool;
-}
-
-impl<T: Config> StorageNodeInterface for Pallet<T> {
+impl<T: Config> StorageNodeStatus for Pallet<T> {
 	type AccountId = T::AccountId;
-	type NodeId = BoundedVec<u8, ConstU32<60>>;
-	type Identifier = IdentifierOf;
 
 	/// Get the details of a storage node by its `node_id`.
+	fn ensure_active_storage_node(
+		node_id: &DataNodeId,
+		owner: &CordAccountOf<T>,
+	) -> Result<Ss58Identifier, DispatchError> {
+		if let Some((identifier, node_owner, active)) = Self::get_storage_node_details(node_id) {
+			ensure!(active, Error::<T>::NodeNotActive);
+			ensure!(node_owner == *owner, Error::<T>::UnauthorizedOperation);
+			Ok(identifier)
+		} else {
+			Err(Error::<T>::NodeNotFound.into())
+		}
+	}
+
 	fn get_storage_node_details(
-		node_id: Self::NodeId,
-	) -> Option<(Self::Identifier, Self::AccountId, bool)> {
+		node_id: &DataNodeId,
+	) -> Option<(Ss58Identifier, CordAccountOf<T>, bool)> {
 		if let Some((identifier, author)) = StorageNodes::<T>::get(&node_id) {
 			if let Some((_, _, active)) = StorageNodeConfigInfo::<T>::get(&identifier) {
 				return Some((identifier, author, active));
 			}
 		}
 		None
-	}
-	/// Get the details of a storage node by its `identifier`.
-	fn get_storage_node_details_by_identifier(
-		identifier: Self::Identifier,
-	) -> Option<(Self::NodeId, Self::AccountId, bool)> {
-		StorageNodeConfigInfo::<T>::get(&identifier)
-	}
-
-	/// Check if a storage node is active by its `node_id`.
-	fn is_storage_node_active(node_id: Self::NodeId) -> bool {
-		if let Some((identifier, _)) = StorageNodes::<T>::get(&node_id) {
-			if let Some((_, _, active)) = StorageNodeConfigInfo::<T>::get(&identifier) {
-				return active;
-			}
-		}
-		false
-	}
-
-	/// Check if a storage node is active by its `identifier`.
-	fn is_storage_node_active_by_identifier(identifier: Self::Identifier) -> bool {
-		if let Some((_, _, active)) = StorageNodeConfigInfo::<T>::get(&identifier) {
-			return active;
-		}
-		false
 	}
 }

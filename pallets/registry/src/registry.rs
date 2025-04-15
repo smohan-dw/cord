@@ -23,8 +23,9 @@ use frame_support::pallet_prelude::*;
 use sp_runtime::traits::Hash;
 
 use crate::{
-	pallet::Pallet, CordAccountOf, Delegates, Error, HashOf, Identifier, Permissions, Registries,
-	RegistryDetails, RegistryIdentifierOf, Status,
+	pallet::Config, pallet::Pallet, CordAccountOf, Delegates, Error, HashOf, Identifier,
+	Permissions, Registries, RegistryDetails, RegistryIdentifierOf, Ss58Identifier, Status,
+	StorageNodeStatus,
 };
 
 pub fn push_option(buf: &mut Vec<u8>, field: Option<&[u8]>) {
@@ -38,20 +39,23 @@ pub fn push_option(buf: &mut Vec<u8>, field: Option<&[u8]>) {
 
 /// Create a new registry.
 pub fn create_registry<T: crate::Config>(
+	creator: CordAccountOf<T>,
 	tx_hash: HashOf<T>,
 	doc_id: Option<Vec<u8>>,
 	doc_author_id: Option<CordAccountOf<T>>,
 	doc_node_id: Option<Vec<u8>>,
-	creator: CordAccountOf<T>,
 ) -> Result<RegistryIdentifierOf, sp_runtime::DispatchError> {
 	let bounded_doc_id = doc_id
 		.map(|v| v.try_into())
 		.transpose()
 		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
-	let bounded_doc_node_id = doc_node_id
-		.map(|v| v.try_into())
-		.transpose()
-		.map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+	let bounded_doc_node_id: Option<Ss58Identifier> = doc_node_id
+		.map(|doc| {
+			let bounded: BoundedVec<u8, ConstU32<60>> =
+				doc.try_into().map_err(|_| Error::<T>::InvalidIdentifierLength)?;
+			<T as Config>::StorageNodeProvider::ensure_active_storage_node(&bounded, &creator)
+		})
+		.transpose()?;
 	let encoded_doc_author = doc_author_id.as_ref().map(|author| author.encode());
 
 	let mut data = Vec::with_capacity(256);
@@ -61,12 +65,7 @@ pub fn create_registry<T: crate::Config>(
 		bounded_doc_id.as_ref().map(|v: &BoundedVec<u8, ConstU32<64>>| v.as_slice()),
 	);
 	push_option(&mut data, encoded_doc_author.as_ref().map(|v| v.as_slice()));
-	push_option(
-		&mut data,
-		bounded_doc_node_id
-			.as_ref()
-			.map(|v: &BoundedVec<u8, ConstU32<64>>| v.as_slice()),
-	);
+	push_option(&mut data, bounded_doc_node_id.as_ref().map(|id| id.as_ref()));
 	data.extend_from_slice(&creator.encode());
 
 	let digest = T::Hashing::hash(&data);

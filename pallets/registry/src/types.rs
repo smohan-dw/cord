@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with CORD. If not, see <https://www.gnu.org/licenses/>.
 
+use crate::Ss58Identifier;
 use bitflags::bitflags;
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::ConstU32;
@@ -89,16 +90,31 @@ pub enum Status {
 
 #[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
 pub struct RegistryDetails<Account, Hash, Status> {
-	/// The account that paid for the transaction.
-	pub creator: Account,
-	/// The transaction hash associated with the document.
-	pub tx_hash: Hash,
+	/// The account that created the registry.
+	pub author: Account,
+	/// The identifier associated with the spec document.
+	pub spec_id: Hash,
 	/// Optionally, the document identifier as a bounded vector.
-	pub doc_id: Option<BoundedVec<u8, ConstU32<64>>>,
-	/// Optionally, the account that created (authored) the document.
-	pub doc_author_id: Option<Account>,
+	pub byte_store_id: BoundedVec<u8, ConstU32<32>>,
 	/// Optionally, the node identifier as a bounded vector.
-	pub doc_node_id: Option<BoundedVec<u8, ConstU32<64>>>,
+	pub schema_id: Option<Ss58Identifier>,
 	/// The status of the registry entry.
+	pub status: Status,
+}
+
+/// This struct holds the details for a Registry Object.
+#[derive(Encode, Decode, Clone, MaxEncodedLen, RuntimeDebug, PartialEq, Eq, TypeInfo)]
+pub struct ObjectDetails<Account, Hash, Status> {
+	/// The account that created (and paid for) this state.
+	pub creator: Account,
+	/// Unique transaction reference for this state.
+	pub entry_tx_ref: Hash,
+	/// Optional document identifier.
+	pub entry_doc_id: Option<BoundedVec<u8, ConstU32<64>>>,
+	/// Optional document author identifier.
+	pub entry_author_id: Option<Account>,
+	/// Optional node identifier.
+	pub entry_node_id: Option<Ss58Identifier>,
+	/// The current status of this object state.
 	pub status: Status,
 }

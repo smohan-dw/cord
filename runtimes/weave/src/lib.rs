@@ -1474,16 +1474,16 @@ impl cord_uri::Config for Runtime {
 	type BlockNumberProvider = System;
 }
 
-impl pallet_collection::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type Registry = Registry;
-	type WeightInfo = ();
-}
+// impl pallet_collection::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type Registry = Registry;
+// 	type WeightInfo = ();
+// }
 
-impl pallet_registry::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type WeightInfo = ();
-}
+// impl pallet_registry::Config for Runtime {
+// 	type RuntimeEvent = RuntimeEvent;
+// 	type WeightInfo = ();
+// }
 
 pub type MetaTxExtension = (
 	pallet_verify_signature::VerifySignature<Runtime>,
@@ -1727,11 +1727,11 @@ mod runtime {
 	#[runtime::pallet_index(70)]
 	pub type Identifier = cord_uri::Pallet<Runtime>;
 
-	#[runtime::pallet_index(71)]
-	pub type Collection = pallet_collection::Pallet<Runtime>;
+	// #[runtime::pallet_index(71)]
+	// pub type Collection = pallet_collection::Pallet<Runtime>;
 
-	#[runtime::pallet_index(72)]
-	pub type Registry = pallet_registry::Pallet<Runtime>;
+	// #[runtime::pallet_index(72)]
+	// pub type Registry = pallet_registry::Pallet<Runtime>;
 
 	#[runtime::pallet_index(80)]
 	pub type NetworkInfo = pallet_config::Pallet<Runtime>;
@@ -2225,9 +2225,9 @@ impl_runtime_apis! {
 			let decoded: DecodedIdentifier = Identifier::resolve_identifier(&ss58_id).ok()?;
 
 			Some(identifier_api::DecodedIdentifierApi {
-				network: decoded.network,
-				pallet: decoded.pallet,
-				digest: decoded.digest,
+				nid: decoded.nid,
+				pid: decoded.pid,
+				gen: decoded.gen,
 			})
 		}
 
