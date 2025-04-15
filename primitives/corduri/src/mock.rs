@@ -42,6 +42,7 @@ impl frame_system::Config for Test {
 }
 
 impl cord_uri::Config for Test {
+	type RuntimeEvent = RuntimeEvent;
 	type BlockNumberProvider = frame_system::Pallet<Test>;
 }
 

@@ -22,6 +22,8 @@
 extern crate alloc;
 pub mod element;
 pub use crate::element::Element;
+pub mod identifier;
+pub use crate::identifier::Ss58Identifier;
 use alloc::vec::Vec;
 use codec::{CompactAs, Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;

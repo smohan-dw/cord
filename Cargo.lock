@@ -2239,8 +2239,11 @@ dependencies = [
 name = "cord-primitives"
 version = "0.9.5"
 dependencies = [
+ "blake2 0.10.6",
+ "bs58",
  "derive_more 0.99.18",
  "frame-support",
+ "hex",
  "parity-scale-codec",
  "scale-info",
  "serde",

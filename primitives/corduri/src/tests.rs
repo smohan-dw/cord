@@ -43,7 +43,7 @@ fn get_or_add_pallet_index_negative() {
 	new_test_ext().execute_with(|| {
 		let long_name = "A".repeat(65);
 		let result = Pallet::<Test>::get_or_add_pallet_index(&long_name);
-		assert_err!(result, IdentifierError::PalletNameTooLong);
+		assert_err!(result, Error::<Test>::PalletNameTooLong);
 	});
 }
 
@@ -66,7 +66,7 @@ fn resolve_pallet_name_negative() {
 	new_test_ext().execute_with(|| {
 		let invalid_index = 9999;
 		let result = Pallet::<Test>::resolve_pallet_name(invalid_index);
-		assert_err!(result, IdentifierError::PalletNotFound);
+		assert_err!(result, Error::<Test>::PalletNotFound);
 	});
 }
 
@@ -91,9 +91,9 @@ fn record_activity_positive() {
 
 		let event: EventTypeOf =
 			vec![1u8; 10].try_into().expect("Should create a valid bounded vector");
-		let stamp = EventStamp { height: 1, index: 0 };
+		let seal = TimePoint { height: 1, index: 0 };
 
-		assert_ok!(Pallet::<Test>::state_event(&identifier, digest, event.clone(), stamp.clone()));
+		assert_ok!(Pallet::<Test>::state_event(&identifier, digest, event.clone(), seal.clone()));
 
 		let counter = StateVersion::<Test>::get(&identifier);
 		assert_eq!(counter, 1);
@@ -101,6 +101,6 @@ fn record_activity_positive() {
 		let record =
 			StateHistory::<Test>::get(&identifier, 0).expect("An activity record should exist");
 		assert_eq!(record.event, event);
-		assert_eq!(record.event_stamp, stamp);
+		assert_eq!(record.seal, seal);
 	});
 }
