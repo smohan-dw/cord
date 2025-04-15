@@ -1,15 +1,27 @@
-#![cfg_attr(not(feature = "std"), no_std)]
+// This file is part of CORD – https://cord.network
 
-//! # CORD Identifier (Ss58Identifier)
-//!
-//! This module defines the core identifier type used throughout the system. The
-//! Ss58Identifier is a persistent, Base58-encoded data token built from a compact-encoded
-//! network ID, a 32-byte digest (serving as a genesis hash), a compact-encoded pallet ID,
-//! and a 2-byte checksum. This type and its associated operations (encoding, decoding, etc.)
-//! are intended for use across multiple crates, including cord-uri.
-//!
-//! Note: This module is part of cord-primitives and should be imported by all higher-level
-//! modules that need to interact with identifiers.
+// Copyright (C) Dhiway Networks Pvt. Ltd.
+// SPDX-License-Identifier: GPL-3.0-or-later
+
+// CORD is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// CORD is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with CORD. If not, see <https://www.gnu.org/licenses/>.
+
+// # CORD Identifier (Ss58Identifier)
+
+// Note: This module is part of cord-primitives and should be imported by all higher-level
+// modules that need to interact with identifiers.
+
+#![cfg_attr(not(feature = "std"), no_std)]
 
 extern crate alloc;
 use alloc::{string::String, vec::Vec};
@@ -188,7 +200,6 @@ pub struct DecodedIdentifier {
 mod tests {
 	use super::*;
 	use alloc::vec::Vec;
-	use codec::{Decode, Encode};
 	use core::convert::TryFrom;
 
 	// Helper function to generate a valid 32-byte digest.
