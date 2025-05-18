@@ -88,8 +88,8 @@ pub trait IdentityInformationProvider:
 	/// extra `(Data,Data)` pairs we can hold
 	type FieldLimit: Get<u32>;
 
-	/// additional entries
-	fn additional(&self) -> &BoundedVec<(Attribute, Data), Self::FieldLimit>;
+       /// additional entries, if any
+       fn additional(&self) -> Option<&BoundedVec<(Attribute, Data), Self::FieldLimit>>;
 
 	/// Does `self` actually have data for *all* the bits flipped in `fields`?
 	fn has_identity(&self, fields: Self::FieldsIdentifier) -> bool;

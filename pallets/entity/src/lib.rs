@@ -281,21 +281,21 @@ pub mod pallet {
 				Error::<T>::IdentifierSubAccount
 			);
 
-			let info: T::IdentityInformation = *info;
-			let additional = info.additional();
-
-			if !additional.is_empty() {
-				let mut seen = Vec::with_capacity(additional.len());
-				for (key, _val) in additional.iter() {
-					ensure!(!key.is_empty(), Error::<T>::InvalidAttributeEntry);
-					let raw_key = key.as_ref();
-					ensure!(
-						!seen.iter().any(|existing: &&[u8]| *existing == raw_key),
-						Error::<T>::DuplicateAttributeKey
-					);
-					seen.push(raw_key);
-				}
-			}
+                       let info: T::IdentityInformation = *info;
+                       if let Some(additional) = info.additional() {
+                               if !additional.is_empty() {
+                                       let mut seen = Vec::with_capacity(additional.len());
+                                       for (key, _val) in additional.iter() {
+                                               ensure!(!key.is_empty(), Error::<T>::InvalidAttributeEntry);
+                                               let raw_key = key.as_ref();
+                                               ensure!(
+                                                       !seen.iter().any(|existing: &&[u8]| *existing == raw_key),
+                                                       Error::<T>::DuplicateAttributeKey
+                                               );
+                                               seen.push(raw_key);
+                                       }
+                               }
+                       }
 
 			// let digest = T::Hashing::hash(&who.encode());
 			let digest = T::Hashing::hash(&(info.clone(), b"IdentityInfoSet".to_vec()).encode());
@@ -335,17 +335,19 @@ pub mod pallet {
 			IdentityOf::<T>::try_mutate(&id, |opt| -> DispatchResult {
 				let info = opt.as_mut().ok_or(Error::<T>::IdentifierNotFound)?;
 				let mut history = Vec::new();
-				for op in ops.iter() {
-					if let IdentityUpdateOp::UpdateAdditional(key, _) = op {
-						if let Some((_, old)) = info.additional().iter().find(|(k, _)| k == key) {
-							history.push((key.clone(), old.clone()));
-						}
-					}
-					info.apply_update(op).map_err(|e| match e {
-						IdentityUpdateError::AttributeExists => Error::<T>::AttributeExists,
-						IdentityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
-						IdentityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
-					})?;
+                               for op in ops.iter() {
+                                       if let IdentityUpdateOp::UpdateAdditional(key, _) = op {
+                                               if let Some(additional) = info.additional() {
+                                                       if let Some((_, old)) = additional.iter().find(|(k, _)| k == key) {
+                                                               history.push((key.clone(), old.clone()));
+                                                       }
+                                               }
+                                       }
+                                       info.apply_update(op).map_err(|e| match e {
+                                               IdentityUpdateError::AttributeExists => Error::<T>::AttributeExists,
+                                               IdentityUpdateError::TooManyAttributes => Error::<T>::TooManyAttributes,
+                                               IdentityUpdateError::AttributeNotFound => Error::<T>::AttributeNotFound,
+                                       })?;
 				}
 				for (key, old) in history {
 					let ver = Ss58OfAttributeVersion::<T>::get(&id, &key).saturating_add(1);

@@ -73,12 +73,18 @@ fn full_identity_info_roundtrip_and_has_identity_bits() {
 		info.legal = plain_data(b"Legal Name, Esq.");
 		info.web = plain_data(b"https://example.com");
 		info.profile = Some(ProfileCid([0u8; 64]));
-		for i in 0..MaxAdditionalFields::get() {
-			let key = vec![b'k', i as u8];
-			let attr: Attribute = key.clone().try_into().unwrap();
-			let val = plain_data(&[i as u8]);
-			info.additional.try_push((attr, val)).unwrap();
-		}
+                info.additional = Some(BoundedVec::default());
+                for i in 0..MaxAdditionalFields::get() {
+                        let key = vec![b'k', i as u8];
+                        let attr: Attribute = key.clone().try_into().unwrap();
+                        let val = plain_data(&[i as u8]);
+                        info
+                                .additional
+                                .as_mut()
+                                .unwrap()
+                                .try_push((attr, val))
+                                .unwrap();
+                }
 
 		let who = account(12);
 		assert_ok!(Entity::set_identity(
@@ -154,13 +160,24 @@ fn set_identity_errors_and_edge() {
 
 		// 2. Duplicate additional key → DuplicateAttributeKey
 		//    Build an info with two entries using the same key.
-		let mut info_dup = IdentityInfo::<MaxAdditionalFields>::default();
-		// Need at least one non‐empty field so the pallet proceeds to the additional‐check
-		info_dup.display = plain_data(b"d");
-		let k = b"dup".to_vec();
-		let attr: Attribute = k.clone().try_into().unwrap();
-		info_dup.additional.try_push((attr.clone(), plain_data(b"v1"))).unwrap();
-		info_dup.additional.try_push((attr.clone(), plain_data(b"v2"))).unwrap();
+                let mut info_dup = IdentityInfo::<MaxAdditionalFields>::default();
+                // Need at least one non‐empty field so the pallet proceeds to the additional‐check
+                info_dup.display = plain_data(b"d");
+                let k = b"dup".to_vec();
+                let attr: Attribute = k.clone().try_into().unwrap();
+                info_dup.additional = Some(BoundedVec::default());
+                info_dup
+                        .additional
+                        .as_mut()
+                        .unwrap()
+                        .try_push((attr.clone(), plain_data(b"v1")))
+                        .unwrap();
+                info_dup
+                        .additional
+                        .as_mut()
+                        .unwrap()
+                        .try_push((attr.clone(), plain_data(b"v2")))
+                        .unwrap();
 		assert_noop!(
 			Entity::set_identity(RuntimeOrigin::signed(who.clone()), Box::new(info_dup)),
 			Error::<Test>::DuplicateAttributeKey
@@ -203,9 +220,14 @@ fn set_identity_empty_additional_key_errors() {
 	new_test_ext().execute_with(|| {
 		let who = account(50);
 		// Start with a “default” info and then hack in a single empty‐key entry.
-		let mut bad = IdentityInfo::<MaxAdditionalFields>::default();
-		let empty_attr: Attribute = Vec::new().try_into().unwrap(); // length 0 is allowed by TryFrom
-		bad.additional.try_push((empty_attr.clone(), plain_data(b"v"))).unwrap();
+                let mut bad = IdentityInfo::<MaxAdditionalFields>::default();
+                let empty_attr: Attribute = Vec::new().try_into().unwrap(); // length 0 is allowed by TryFrom
+                bad.additional = Some(BoundedVec::default());
+                bad.additional
+                        .as_mut()
+                        .unwrap()
+                        .try_push((empty_attr.clone(), plain_data(b"v")))
+                        .unwrap();
 
 		// That should trigger our ensure!(!key.is_empty(), Error::InvalidAttributeEntry)
 		assert_noop!(
@@ -349,10 +371,11 @@ fn add_attribute_positive() {
 		// stored in IdentityOf
 		let id = Ss58OfActiveAccounts::<Test>::get(&who).unwrap();
 		let info = IdentityOf::<Test>::get(&id).unwrap();
-		assert!(info
-			.additional()
-			.iter()
-			.any(|(attr, data)| &attr[..] == &key[..] && data == &val));
+                assert!(info
+                        .additional()
+                        .unwrap()
+                        .iter()
+                        .any(|(attr, data)| &attr[..] == &key[..] && data == &val));
 	});
 }
 
@@ -489,7 +512,7 @@ fn add_attribute_capacity_via_update_and_exhaust() {
 
 		// Verify that stored IdentityInfo.additional.len() == MaxAdditionalFields:
 		let stored = IdentityOf::<Test>::get(&id).unwrap();
-		assert_eq!(stored.additional().len() as u32, MaxAdditionalFields::get());
+                assert_eq!(stored.additional().map(|a| a.len() as u32).unwrap_or(0), MaxAdditionalFields::get());
 	});
 }
 
